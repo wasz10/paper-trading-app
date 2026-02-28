@@ -33,8 +33,7 @@ export function validateBuy(
 
 export function validateSell(
   sharesOwned: number,
-  sharesToSell: number,
-  _pricePerShareCents: number
+  sharesToSell: number
 ): ValidationResult {
   if (sharesToSell <= 0) {
     return { valid: false, error: 'Must sell a positive number of shares' }

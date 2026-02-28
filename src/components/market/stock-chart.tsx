@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
 import type { ChartDataPoint } from '@/types'
 import type { TimeRange, ChartType } from '@/types/market'
 
@@ -36,6 +35,7 @@ export function StockChart({ ticker }: StockChartProps) {
     if (!chartContainerRef.current || data.length === 0) return
 
     let cancelled = false
+    let observer: ResizeObserver | null = null
 
     async function renderChart() {
       const { createChart, ColorType } = await import('lightweight-charts')
@@ -108,20 +108,19 @@ export function StockChart({ ticker }: StockChartProps) {
 
       chart.timeScale().fitContent()
 
-      const observer = new ResizeObserver(() => {
+      observer = new ResizeObserver(() => {
         if (chartContainerRef.current) {
           chart.applyOptions({ width: chartContainerRef.current.clientWidth })
         }
       })
       observer.observe(chartContainerRef.current)
-
-      return () => observer.disconnect()
     }
 
     renderChart()
 
     return () => {
       cancelled = true
+      observer?.disconnect()
       if (chartRef.current) {
         chartRef.current.remove()
         chartRef.current = null

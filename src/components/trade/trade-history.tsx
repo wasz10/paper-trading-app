@@ -17,9 +17,7 @@ export function TradeHistory() {
     async function fetchTrades() {
       try {
         const res = await fetch('/api/portfolio')
-        const json = await res.json()
-        // The portfolio endpoint doesn't return trades, so we'll show empty for now
-        // Trade history will be populated as trades are made
+        await res.json()
         setTrades([])
       } catch {
         // ignore

@@ -1,22 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getMarketStatus } from '@/lib/market/hours'
 
 export function MarketHoursBanner() {
-  const [status, setStatus] = useState<{ isOpen: boolean; message: string } | null>(null)
-  const [dismissed, setDismissed] = useState(false)
-
-  useEffect(() => {
-    const wasDismissed = sessionStorage.getItem('market-banner-dismissed')
-    if (wasDismissed) {
-      setDismissed(true)
-      return
-    }
-    setStatus(getMarketStatus())
-  }, [])
+  const wasDismissed = typeof window !== 'undefined' && sessionStorage.getItem('market-banner-dismissed')
+  const initialStatus = wasDismissed ? null : getMarketStatus()
+  const [status] = useState(initialStatus)
+  const [dismissed, setDismissed] = useState(!!wasDismissed)
 
   if (!status || status.isOpen || dismissed) return null
 

@@ -8,6 +8,10 @@ export async function getQuote(ticker: string): Promise<StockQuote> {
   const result = await yahooFinance.quote(ticker)
 
   const price = result.regularMarketPrice ?? 0
+  if (price <= 0) {
+    throw new Error(`No price data for ${ticker}`)
+  }
+
   const change = result.regularMarketChange ?? 0
   const changePercent = result.regularMarketChangePercent ?? 0
 
@@ -70,6 +74,7 @@ function getChartParams(range: TimeRange): { period1: Date; interval: '1m' | '5m
 
 export async function getChartData(ticker: string, range: TimeRange): Promise<ChartDataPoint[]> {
   const { period1, interval } = getChartParams(range)
+  const isIntraday = range === '1D' || range === '1W'
 
   const result = await yahooFinance.chart(ticker, {
     period1,
@@ -79,7 +84,10 @@ export async function getChartData(ticker: string, range: TimeRange): Promise<Ch
   return (result.quotes ?? [])
     .filter((q) => q.close !== null && q.close !== undefined)
     .map((q) => ({
-      time: q.date.toISOString().split('T')[0],
+      // Use unix timestamp for intraday to avoid duplicate YYYY-MM-DD keys
+      time: isIntraday
+        ? String(Math.floor(q.date.getTime() / 1000))
+        : q.date.toISOString().split('T')[0],
       open: q.open ?? undefined,
       high: q.high ?? undefined,
       low: q.low ?? undefined,

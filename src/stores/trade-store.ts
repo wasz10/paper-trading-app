@@ -26,6 +26,7 @@ export const useTradeStore = create<TradeState>((set) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker, dollarAmount }),
       })
+      if (!res.ok) throw new Error('Request failed')
       const json = await res.json()
       if (json.error) {
         set({ isExecuting: false })
@@ -47,6 +48,7 @@ export const useTradeStore = create<TradeState>((set) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker, shares }),
       })
+      if (!res.ok) throw new Error('Request failed')
       const json = await res.json()
       if (json.error) {
         set({ isExecuting: false })

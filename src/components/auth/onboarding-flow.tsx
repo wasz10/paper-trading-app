@@ -10,8 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { TrendingUp, Brain, Trophy } from 'lucide-react'
 
-const STEPS = ['welcome', 'how-it-works', 'all-set'] as const
-type Step = (typeof STEPS)[number]
+type Step = 'welcome' | 'how-it-works' | 'all-set'
 
 const HOW_IT_WORKS_CARDS = [
   {
@@ -88,8 +87,6 @@ export function OnboardingFlow() {
     const { error } = await supabase.from('users').insert({
       id: user.id,
       display_name: displayName.trim(),
-      cash_balance: 1000000,
-      token_balance: 50,
     })
 
     if (error) {
@@ -97,6 +94,14 @@ export function OnboardingFlow() {
       setIsSubmitting(false)
       return
     }
+
+    // Grant welcome tokens via token_transactions
+    await supabase.from('token_transactions').insert({
+      user_id: user.id,
+      amount: 50,
+      reason: 'daily_reward',
+      description: 'Welcome bonus tokens',
+    })
 
     router.push('/dashboard')
     router.refresh()

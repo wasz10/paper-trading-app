@@ -49,8 +49,8 @@ export async function executeBuy(
     return { success: false, error: validation.error }
   }
 
-  // Update user balance
-  const { error: updateError } = await supabase
+  // Optimistic lock: only update if balance hasn't changed (prevents double-spend)
+  const { data: updated, error: updateError } = await supabase
     .from('users')
     .update({
       cash_balance: user.cash_balance - totalCents,
@@ -58,9 +58,11 @@ export async function executeBuy(
       trades_today_date: today,
     })
     .eq('id', userId)
+    .eq('cash_balance', user.cash_balance)
+    .select('id')
 
-  if (updateError) {
-    return { success: false, error: 'Failed to update balance' }
+  if (updateError || !updated || updated.length === 0) {
+    return { success: false, error: 'Balance changed, please retry' }
   }
 
   // Upsert holding
@@ -78,20 +80,37 @@ export async function executeBuy(
       shares,
       currentPriceCents
     )
-    await supabase
+    const { error: holdingErr } = await supabase
       .from('holdings')
       .update({
         shares: Number(existingHolding.shares) + shares,
         avg_cost_cents: newAvgCost,
       })
       .eq('id', existingHolding.id)
+
+    if (holdingErr) {
+      // Rollback balance
+      await supabase
+        .from('users')
+        .update({ cash_balance: user.cash_balance })
+        .eq('id', userId)
+      return { success: false, error: 'Failed to update holding' }
+    }
   } else {
-    await supabase.from('holdings').insert({
+    const { error: holdingErr } = await supabase.from('holdings').insert({
       user_id: userId,
       ticker,
       shares,
       avg_cost_cents: currentPriceCents,
     })
+
+    if (holdingErr) {
+      await supabase
+        .from('users')
+        .update({ cash_balance: user.cash_balance })
+        .eq('id', userId)
+      return { success: false, error: 'Failed to create holding' }
+    }
   }
 
   // Insert trade
@@ -157,7 +176,7 @@ export async function executeSell(
   const ownedShares = Number(holding.shares)
 
   // Validate
-  const validation = validateSell(ownedShares, sharesToSell, currentPriceCents)
+  const validation = validateSell(ownedShares, sharesToSell)
   if (!validation.valid) {
     return { success: false, error: validation.error }
   }
@@ -171,8 +190,8 @@ export async function executeSell(
 
   const totalCents = Math.round(actualSharesToSell * currentPriceCents)
 
-  // Update user balance
-  await supabase
+  // Optimistic lock on balance
+  const { data: updated, error: updateError } = await supabase
     .from('users')
     .update({
       cash_balance: user.cash_balance + totalCents,
@@ -180,15 +199,29 @@ export async function executeSell(
       trades_today_date: today,
     })
     .eq('id', userId)
+    .eq('cash_balance', user.cash_balance)
+    .select('id')
+
+  if (updateError || !updated || updated.length === 0) {
+    return { success: false, error: 'Balance changed, please retry' }
+  }
 
   // Update or delete holding
   if (actualSharesToSell >= ownedShares) {
-    await supabase.from('holdings').delete().eq('id', holding.id)
+    const { error: holdingErr } = await supabase.from('holdings').delete().eq('id', holding.id)
+    if (holdingErr) {
+      await supabase.from('users').update({ cash_balance: user.cash_balance }).eq('id', userId)
+      return { success: false, error: 'Failed to update holding' }
+    }
   } else {
-    await supabase
+    const { error: holdingErr } = await supabase
       .from('holdings')
       .update({ shares: ownedShares - actualSharesToSell })
       .eq('id', holding.id)
+    if (holdingErr) {
+      await supabase.from('users').update({ cash_balance: user.cash_balance }).eq('id', userId)
+      return { success: false, error: 'Failed to update holding' }
+    }
   }
 
   // Insert trade

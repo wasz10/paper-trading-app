@@ -17,6 +17,7 @@ export const usePortfolioStore = create<PortfolioState>((set) => ({
     set({ isLoading: true, error: null })
     try {
       const res = await fetch('/api/portfolio')
+      if (!res.ok) throw new Error('Request failed')
       const json = await res.json()
       if (json.error) {
         set({ error: json.error, isLoading: false })

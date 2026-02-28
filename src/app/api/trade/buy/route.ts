@@ -15,7 +15,12 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { ticker, dollarAmount } = body as { ticker: string; dollarAmount: number }
 
-    if (!ticker || !dollarAmount || dollarAmount < 100) {
+    const tickerRegex = /^[A-Z0-9.\-]{1,10}$/
+    if (!ticker || typeof ticker !== 'string' || !tickerRegex.test(ticker)) {
+      return NextResponse.json({ error: 'Invalid ticker' }, { status: 400 })
+    }
+
+    if (!dollarAmount || dollarAmount < 100) {
       return NextResponse.json({ error: 'Invalid request. Minimum $1.00.' }, { status: 400 })
     }
 
