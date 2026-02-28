@@ -39,6 +39,7 @@ export function StockChart({ ticker }: StockChartProps) {
 
     async function renderChart() {
       const { createChart, ColorType } = await import('lightweight-charts')
+      type Time = import('lightweight-charts').Time
 
       if (cancelled || !chartContainerRef.current) return
 
@@ -54,6 +55,7 @@ export function StockChart({ ticker }: StockChartProps) {
         layout: {
           background: { type: ColorType.Solid, color: 'transparent' },
           textColor: '#9ca3af',
+          attributionLogo: false,
         },
         grid: {
           vertLines: { color: 'rgba(255,255,255,0.05)' },
@@ -68,7 +70,7 @@ export function StockChart({ ticker }: StockChartProps) {
       chartRef.current = chart
 
       const chartData = data.map((d) => ({
-        time: d.time as string,
+        time: (typeof d.time === 'number' ? d.time : d.time) as Time,
         value: d.close,
         open: d.open,
         high: d.high,

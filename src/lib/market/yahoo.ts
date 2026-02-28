@@ -84,9 +84,9 @@ export async function getChartData(ticker: string, range: TimeRange): Promise<Ch
   return (result.quotes ?? [])
     .filter((q) => q.close !== null && q.close !== undefined)
     .map((q) => ({
-      // Use unix timestamp for intraday to avoid duplicate YYYY-MM-DD keys
+      // Use unix timestamp (number) for intraday, YYYY-MM-DD string for daily+
       time: isIntraday
-        ? String(Math.floor(q.date.getTime() / 1000))
+        ? Math.floor(q.date.getTime() / 1000)
         : q.date.toISOString().split('T')[0],
       open: q.open ?? undefined,
       high: q.high ?? undefined,

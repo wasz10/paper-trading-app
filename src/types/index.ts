@@ -102,7 +102,7 @@ export interface StockQuote {
 }
 
 export interface ChartDataPoint {
-  time: string // YYYY-MM-DD or unix timestamp
+  time: string | number // YYYY-MM-DD string for daily+, unix seconds number for intraday
   open?: number
   high?: number
   low?: number
