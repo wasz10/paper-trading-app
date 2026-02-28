@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import {
   LineChart,
   Line,
@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatCurrency } from '@/lib/utils'
+import { formatDollars } from '@/lib/utils'
 import type { PortfolioSnapshot } from '@/types'
 
 type Period = '1W' | '1M' | '3M' | 'ALL'
@@ -31,41 +31,46 @@ interface ChartPoint {
   value: number
 }
 
+type ChartState = { data: ChartPoint[]; isLoading: boolean }
+type ChartAction =
+  | { type: 'fetch' }
+  | { type: 'success'; data: ChartPoint[] }
+  | { type: 'error' }
+
+function chartReducer(_state: ChartState, action: ChartAction): ChartState {
+  switch (action.type) {
+    case 'fetch': return { data: [], isLoading: true }
+    case 'success': return { data: action.data, isLoading: false }
+    case 'error': return { data: [], isLoading: false }
+  }
+}
+
 export function PerformanceChart() {
   const [period, setPeriod] = useState<Period>('1M')
-  const [data, setData] = useState<ChartPoint[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  const fetchHistory = useCallback(async (p: Period) => {
-    setIsLoading(true)
-    try {
-      const res = await fetch(`/api/portfolio/history?days=${PERIOD_DAYS[p]}`)
-      if (!res.ok) {
-        setData([])
-        return
-      }
-      const json = await res.json()
-      const snapshots: PortfolioSnapshot[] = json.data ?? []
-      setData(
-        snapshots.map((s) => ({
-          date: s.snapshot_date,
-          value: s.total_value_cents / 100,
-        }))
-      )
-    } catch {
-      setData([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const [state, dispatch] = useReducer(chartReducer, { data: [], isLoading: true })
 
   useEffect(() => {
-    fetchHistory(period)
-  }, [period, fetchHistory])
+    const controller = new AbortController()
+    dispatch({ type: 'fetch' })
 
-  function handlePeriod(p: Period) {
-    setPeriod(p)
-  }
+    fetch(`/api/portfolio/history?days=${PERIOD_DAYS[period]}`, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) { dispatch({ type: 'error' }); return }
+        return res.json()
+      })
+      .then((json) => {
+        if (!json) return
+        const snapshots: PortfolioSnapshot[] = json.data ?? []
+        dispatch({ type: 'success', data: snapshots.map((s) => ({ date: s.snapshot_date, value: s.total_value_cents / 100 })) })
+      })
+      .catch((err) => {
+        if ((err as Error).name !== 'AbortError') dispatch({ type: 'error' })
+      })
+
+    return () => controller.abort()
+  }, [period])
+
+  const { data, isLoading } = state
 
   const formatYAxis = (value: number) => {
     if (value >= 1000) return `$${(value / 1000).toFixed(1)}k`
@@ -86,7 +91,7 @@ export function PerformanceChart() {
             {PERIODS.map((p) => (
               <button
                 key={p}
-                onClick={() => handlePeriod(p)}
+                onClick={() => setPeriod(p)}
                 className={`px-2 py-1 text-xs rounded-md transition-colors ${
                   period === p
                     ? 'bg-primary text-primary-foreground'
@@ -123,7 +128,7 @@ export function PerformanceChart() {
                 width={50}
               />
               <Tooltip
-                formatter={(value: number) => [formatCurrency(Math.round(value * 100)), 'Value']}
+                formatter={(value: number) => [formatDollars(value), 'Value']}
                 labelFormatter={(label: string) =>
                   new Date(label + 'T00:00:00').toLocaleDateString('en-US', {
                     month: 'long',

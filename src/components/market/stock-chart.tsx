@@ -22,13 +22,21 @@ export function StockChart({ ticker }: StockChartProps) {
 
   useEffect(() => {
     setIsLoading(true)
-    fetch(`/api/market/chart/${ticker}?range=${range}`)
-      .then((res) => res.json())
+    const controller = new AbortController()
+    fetch(`/api/market/chart/${ticker}?range=${range}`, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Chart API error: ${res.status}`)
+        return res.json()
+      })
       .then((json) => {
         setData(json.data ?? [])
-        setIsLoading(false)
       })
-      .catch(() => setIsLoading(false))
+      .catch((err) => {
+        if ((err as Error).name !== 'AbortError') setData([])
+      })
+      .finally(() => setIsLoading(false))
+
+    return () => controller.abort()
   }, [ticker, range])
 
   useEffect(() => {
@@ -74,7 +82,7 @@ export function StockChart({ ticker }: StockChartProps) {
       chartRef.current = chart
 
       const chartData = data.map((d) => ({
-        time: (typeof d.time === 'number' ? d.time : d.time) as Time,
+        time: d.time as Time,
         value: d.close,
         open: d.open,
         high: d.high,

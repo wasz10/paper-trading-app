@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = request.nextUrl
-    const days = Math.min(Math.max(parseInt(searchParams.get('days') ?? '30', 10) || 30, 1), 365)
+    const rawDays = parseInt(searchParams.get('days') ?? '30', 10)
+    const days = Math.min(Math.max(isNaN(rawDays) ? 30 : rawDays, 1), 365)
 
     const since = new Date()
     since.setDate(since.getDate() - days)

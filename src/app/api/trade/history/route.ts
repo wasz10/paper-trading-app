@@ -15,14 +15,9 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10), 1), 100)
     const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10), 0)
 
-    const { count } = await supabase
+    const { data: trades, error, count } = await supabase
       .from('trades')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-
-    const { data: trades, error } = await supabase
-      .from('trades')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)

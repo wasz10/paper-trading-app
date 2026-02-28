@@ -22,21 +22,28 @@ export function StockSearch() {
       return
     }
 
+    const controller = new AbortController()
     const timer = setTimeout(async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`/api/market/search?q=${encodeURIComponent(query)}`)
+        const res = await fetch(`/api/market/search?q=${encodeURIComponent(query)}`, {
+          signal: controller.signal,
+        })
+        if (!res.ok) { setResults([]); return }
         const json = await res.json()
         setResults(json.data ?? [])
         setIsOpen(true)
-      } catch {
-        setResults([])
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') setResults([])
       } finally {
         setIsLoading(false)
       }
     }, 300)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [query])
 
   useEffect(() => {

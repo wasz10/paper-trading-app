@@ -7,8 +7,7 @@ import { ArrowRight, Check, TrendingUp, TrendingDown, DollarSign } from 'lucide-
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
-import { formatDollars } from '@/lib/utils'
+import { cn, formatDollars } from '@/lib/utils'
 
 // Mock stock data with realistic prices
 const MOCK_STOCKS = [
@@ -61,7 +60,7 @@ export function InteractiveDemo() {
     setStep('confirm')
 
     // After brief confirmation, start P&L animation
-    setTimeout(() => {
+    animationRef.current = setTimeout(() => {
       setStep('result')
       setIsAnimatingPrice(true)
     }, 1200)

@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-02-27 23:30
+> Last updated: 2026-02-28
 
 ---
 
@@ -68,6 +68,35 @@
 - Leaderboard page at `/leaderboard` with period tabs
 - `leaderboard_cache` table with public SELECT RLS
 
+### v2 Features — Trade History, Portfolio Snapshots, Interactive Demo, Mobile QA
+Delivered via 4 parallel agents (commit 5f36a78, 28 files changed, 1127 additions).
+
+#### Trade History API + Dashboard
+- GET `/api/trade/history` route with pagination (`?limit=20&offset=0`), auth required
+- Trade history component fetches real data (ticker, type badge, shares, price, total, date)
+- Dashboard already wired — no page-level changes needed
+
+#### Portfolio Snapshots Cron + Performance Chart
+- Vercel cron job at `/api/cron/snapshot` (daily midnight UTC via `vercel.json`)
+- Supabase admin client at `src/lib/supabase/admin.ts` — bypasses RLS for batch operations
+- GET `/api/portfolio/history` route with `?days=30` param
+- Recharts LineChart performance chart with period selector (1W / 1M / 3M / ALL)
+- Empty state: "No data yet — check back tomorrow!" until cron has run at least once
+
+#### Mobile QA & Polish
+- 14 touch target fixes (44px minimum on all interactive elements)
+- 12 mobile responsiveness fixes at 375px (leaderboard tabs, stock detail, trade rows, search dropdown, etc.)
+- 3 dark mode fixes (stock chart grid/text/borders detect light/dark mode)
+- `scrollbar-hide` CSS utility added to `globals.css`
+- `QA-REPORT.md` created with full audit details
+
+#### Interactive Landing Page Demo
+- `src/components/landing/interactive-demo.tsx` — client-side mini trading sim, no auth required
+- Mock data for 5 stocks: AAPL, TSLA, GOOGL, AMZN, MSFT
+- Flow: stock list → buy interface → animated confirmation → P&L animation → CTA to signup
+- Framer Motion animations, glass-morphism styling
+- Integrated between FeaturesGrid and SocialProof on landing page
+
 ### Phase 8 — Landing Page & Settings
 - Full landing page rewrite at `src/app/page.tsx`
 - Landing components: hero, features, social-proof, CTA under `src/components/landing/`
@@ -102,11 +131,9 @@ Nothing currently in progress.
 
 ## Up Next
 - [ ] Add ANTHROPIC_API_KEY to Vercel env vars -- AI coach errors without it
+- [ ] Add CRON_SECRET env var to Vercel for daily snapshot cron
+- [ ] Add SUPABASE_SERVICE_ROLE_KEY env var to Vercel for cron admin client
 - [ ] Configure Google OAuth in Supabase (needs Google client ID/secret)
-- [ ] Trade history on dashboard -- placeholder now, needs API endpoint returning user's trades
-- [ ] Portfolio performance chart -- needs daily cron job to populate `portfolio_snapshots` table
-- [ ] Phase 8B: Interactive demo on landing page (client-side mini trading sim, no auth)
-- [ ] Phase 8D: QA swarm -- mobile responsiveness, dark mode, edge cases, performance
 - [ ] Connect GitHub repo to Vercel for auto-deploy on push
 
 ---
@@ -114,7 +141,7 @@ Nothing currently in progress.
 ## Known Issues / Context
 
 ### Architecture
-- **24 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback), API (/api/market/*, /api/trade/*, /api/portfolio, /api/rewards/*, /api/leaderboard)
+- **27 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot)
 - **Layout**: Desktop = left sidebar (w-64) + header + main. Mobile = bottom nav (h-16) + header + full-width. Both share 5 nav items: Dashboard, Explore, Rewards, Leaderboard, Settings.
 - **Dashboard layout**: `src/app/(dashboard)/layout.tsx` is a server component that does auth check + profile fetch.
 - **State management**: Zustand stores for portfolio and trade state; server components fetch directly from Supabase.
@@ -132,8 +159,9 @@ Nothing currently in progress.
 ### Technical Gotchas
 - AI coach will 500 error until ANTHROPIC_API_KEY is added to Vercel env vars.
 - Google OAuth button is rendered but has no server-side config -- clicking it will fail.
-- Trade history component on dashboard always shows empty state (no trades API for listing user trades).
-- Portfolio performance chart placeholder exists but `portfolio_snapshots` table has no cron job populating it yet.
+- Cron job at `/api/cron/snapshot` needs CRON_SECRET and SUPABASE_SERVICE_ROLE_KEY env vars in Vercel before it will run successfully.
+- Portfolio performance chart shows empty state ("No data yet — check back tomorrow!") until the cron has run at least once and populated `portfolio_snapshots`.
+- Interactive landing page demo uses mock data only — no API calls are made.
 - yahoo-finance2 occasionally returns zero prices -- the zero-price rejection in `yahoo.ts` handles this.
 - ResizeObserver in stock-chart.tsx was leaking -- fixed with proper cleanup in useEffect.
 
@@ -144,7 +172,7 @@ Nothing currently in progress.
 - **Migrations**: `supabase/migrations/001_initial_schema.sql`, `002_architecture_additions.sql`
 
 ### Git
-- **Branch**: master, 6 commits, build + lint clean
+- **Branch**: master, 7 commits, build + lint clean (latest: 5f36a78)
 - **GitHub**: https://github.com/wasz10/paper-trading-app
 
 ### Workflow
@@ -174,3 +202,13 @@ Nothing currently in progress.
 | `src/components/auth/onboarding-flow.tsx` | modified | Removed client-supplied financial values |
 | `src/stores/portfolio-store.ts` | modified | Added `res.ok` check |
 | `src/stores/trade-store.ts` | modified | Added `res.ok` check |
+| `src/app/api/trade/history/route.ts` | created | Trade history API with pagination |
+| `src/app/api/portfolio/history/route.ts` | created | Portfolio history API (?days=30) |
+| `src/app/api/cron/snapshot/route.ts` | created | Daily cron to snapshot portfolio values |
+| `src/lib/supabase/admin.ts` | created | Supabase admin client (bypasses RLS) |
+| `src/components/landing/interactive-demo.tsx` | created | Client-side mini trading sim for landing page |
+| `src/components/portfolio/performance-chart.tsx` | modified | Full Recharts LineChart with period selector |
+| `src/components/trade/trade-history.tsx` | modified | Fetches real trade data from API |
+| `vercel.json` | created | Cron job config (daily midnight UTC) |
+| `QA-REPORT.md` | created | Full mobile/dark-mode QA audit |
+| *(16 additional files)* | modified | Mobile responsiveness, touch targets, dark mode fixes |
