@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ArrowLeft } from 'lucide-react'
 import { formatCurrency, formatShares } from '@/lib/utils'
+import { TradeAnalysisCard } from '@/components/ai/trade-analysis-card'
 import type { Trade } from '@/types'
 
 export default function TradeDetailPage() {
@@ -85,16 +86,7 @@ export default function TradeDetailPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">AI Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            {trade.ai_analysis ?? 'AI analysis will appear here after Phase 6'}
-          </p>
-        </CardContent>
-      </Card>
+      <TradeAnalysisCard tradeId={trade.id} existingAnalysis={trade.ai_analysis} />
     </div>
   )
 }
