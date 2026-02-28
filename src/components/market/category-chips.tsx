@@ -11,13 +11,13 @@ interface CategoryChipsProps {
 
 export function CategoryChips({ selected, onSelect }: CategoryChipsProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
       {STOCK_CATEGORIES.map((cat) => (
         <Button
           key={cat.id}
           variant={selected === cat.id ? 'default' : 'outline'}
           size="sm"
-          className={cn('shrink-0', selected === cat.id && 'pointer-events-none')}
+          className={cn('shrink-0 min-h-[36px]', selected === cat.id && 'pointer-events-none')}
           onClick={() => onSelect(cat.id)}
         >
           {cat.label}

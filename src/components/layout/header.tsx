@@ -39,7 +39,7 @@ export function Header({ displayName, tokenBalance = 0 }: HeaderProps) {
         <Avatar className="h-8 w-8">
           <AvatarFallback className="text-xs">{initials}</AvatarFallback>
         </Avatar>
-        <Button variant="ghost" size="icon" onClick={handleLogout} className="h-8 w-8">
+        <Button variant="ghost" size="icon" onClick={handleLogout} className="h-9 w-9">
           <LogOut className="h-4 w-4" />
         </Button>
       </div>

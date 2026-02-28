@@ -1,5 +1,6 @@
 import { HeroSection } from '@/components/landing/hero-section'
 import { FeaturesGrid } from '@/components/landing/features-grid'
+import { InteractiveDemo } from '@/components/landing/interactive-demo'
 import { SocialProof } from '@/components/landing/social-proof'
 import { CtaSection } from '@/components/landing/cta-section'
 
@@ -8,6 +9,7 @@ export default function LandingPage() {
     <main className="min-h-screen">
       <HeroSection />
       <FeaturesGrid />
+      <InteractiveDemo />
       <SocialProof />
       <CtaSection />
     </main>

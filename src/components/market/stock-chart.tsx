@@ -50,21 +50,25 @@ export function StockChart({ ticker }: StockChartProps) {
 
       const isPositive = data.length >= 2 && data[data.length - 1].close >= data[0].close
       const color = isPositive ? '#22c55e' : '#ef4444'
+      const isDark = document.documentElement.classList.contains('dark')
+      const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'
+      const borderColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+      const textColor = isDark ? '#9ca3af' : '#6b7280'
 
       const chart = createChart(chartContainerRef.current, {
         layout: {
           background: { type: ColorType.Solid, color: 'transparent' },
-          textColor: '#9ca3af',
+          textColor,
           attributionLogo: false,
         },
         grid: {
-          vertLines: { color: 'rgba(255,255,255,0.05)' },
-          horzLines: { color: 'rgba(255,255,255,0.05)' },
+          vertLines: { color: gridColor },
+          horzLines: { color: gridColor },
         },
         width: chartContainerRef.current.clientWidth,
         height: window.innerWidth < 768 ? 300 : 400,
-        timeScale: { borderColor: 'rgba(255,255,255,0.1)' },
-        rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
+        timeScale: { borderColor },
+        rightPriceScale: { borderColor },
       })
 
       chartRef.current = chart
@@ -139,7 +143,7 @@ export function StockChart({ ticker }: StockChartProps) {
               key={r}
               variant={range === r ? 'default' : 'ghost'}
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="h-9 px-2.5 text-xs"
               onClick={() => setRange(r)}
             >
               {r}
@@ -149,7 +153,7 @@ export function StockChart({ ticker }: StockChartProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs"
+          className="h-9 text-xs"
           onClick={() => setChartType(chartType === 'area' ? 'candlestick' : 'area')}
         >
           {chartType === 'area' ? 'Candlestick' : 'Line'}

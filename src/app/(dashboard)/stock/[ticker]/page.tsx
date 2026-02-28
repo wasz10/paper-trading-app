@@ -58,12 +58,12 @@ export default function StockDetailPage() {
       </Button>
 
       <div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-baseline gap-2 flex-wrap">
           <h1 className="text-2xl font-bold">{quote.ticker}</h1>
-          <span className="text-muted-foreground">{quote.name}</span>
+          <span className="text-muted-foreground text-sm truncate max-w-[200px] sm:max-w-none">{quote.name}</span>
         </div>
-        <div className="flex items-baseline gap-3 mt-1">
-          <span className="text-4xl font-bold">{formatDollars(quote.price)}</span>
+        <div className="flex items-baseline gap-3 mt-1 flex-wrap">
+          <span className="text-3xl sm:text-4xl font-bold">{formatDollars(quote.price)}</span>
           <Badge
             variant="secondary"
             className={isPositive ? 'text-gain' : 'text-loss'}

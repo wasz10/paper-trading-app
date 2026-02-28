@@ -24,7 +24,7 @@ export function LeaderboardRow({ entry, rank, isCurrentUser }: LeaderboardRowPro
   return (
     <div
       className={cn(
-        'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+        'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px]',
         isCurrentUser && 'bg-primary/5 border border-primary/20',
         !isCurrentUser && 'hover:bg-muted/50'
       )}

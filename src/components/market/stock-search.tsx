@@ -77,20 +77,20 @@ export function StockSearch() {
             results.map((result) => (
               <button
                 key={result.ticker}
-                className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent text-left transition-colors"
+                className="w-full flex items-center justify-between gap-2 px-3 py-2.5 hover:bg-accent text-left transition-colors min-h-[44px]"
                 onClick={() => {
                   router.push(`/stock/${result.ticker}`)
                   setIsOpen(false)
                   setQuery('')
                 }}
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <span className="font-medium">{result.ticker}</span>
-                  <span className="ml-2 text-sm text-muted-foreground truncate">
+                  <span className="ml-2 text-sm text-muted-foreground truncate inline-block max-w-[150px] sm:max-w-[250px] align-bottom">
                     {result.name}
                   </span>
                 </div>
-                <span className="text-xs text-muted-foreground">{result.exchange}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{result.exchange}</span>
               </button>
             ))
           )}

@@ -23,15 +23,15 @@ export function StreakDisplay({ currentStreak }: StreakDisplayProps) {
         <span className="text-2xl font-bold">{currentStreak}</span>
         <span className="text-sm text-muted-foreground">day streak</span>
       </div>
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-1">
         {days.map((d) => (
           <div
             key={d.day}
-            className={`flex flex-col items-center p-2 rounded-lg text-xs ${
+            className={`flex flex-col items-center justify-center p-1.5 sm:p-2 rounded-lg text-xs min-h-[44px] ${
               d.isCompleted
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground'
-            } ${d.isCurrent ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+            } ${d.isCurrent ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}
           >
             <span className="font-medium">D{d.day}</span>
             <span>{d.tokens}</span>

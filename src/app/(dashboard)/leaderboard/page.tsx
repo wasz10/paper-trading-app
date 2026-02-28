@@ -71,7 +71,7 @@ export default function LeaderboardPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Top Traders</CardTitle>
             <Tabs
               value={period}

@@ -121,7 +121,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 p-4">
+    <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">Settings</h1>
 
       <Card>
@@ -175,12 +175,12 @@ export default function SettingsPage() {
               role="switch"
               aria-checked={showDisplayName}
               onClick={() => setShowDisplayName(!showDisplayName)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 showDisplayName ? 'bg-primary' : 'bg-input'
               }`}
             >
               <span
-                className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                className={`pointer-events-none block h-6 w-6 rounded-full bg-background shadow-lg ring-0 transition-transform ${
                   showDisplayName ? 'translate-x-5' : 'translate-x-0'
                 }`}
               />

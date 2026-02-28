@@ -12,13 +12,12 @@ export function TradeHistory() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Fetch recent trades from the portfolio endpoint's trades
-    // For now we fetch from supabase directly via a simple API
     async function fetchTrades() {
       try {
-        const res = await fetch('/api/portfolio')
-        await res.json()
-        setTrades([])
+        const res = await fetch('/api/trade/history?limit=20&offset=0')
+        if (!res.ok) return
+        const json = await res.json()
+        setTrades(json.data ?? [])
       } catch {
         // ignore
       } finally {
@@ -52,21 +51,24 @@ export function TradeHistory() {
         <Link
           key={trade.id}
           href={`/trade/${trade.id}`}
-          className="flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-colors"
+          className="flex items-center justify-between gap-2 p-3 rounded-lg hover:bg-accent transition-colors min-h-[44px]"
         >
-          <div className="flex items-center gap-3">
-            <Badge variant={trade.type === 'buy' ? 'default' : 'destructive'} className="text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <Badge
+              variant={trade.type === 'buy' ? 'default' : 'destructive'}
+              className={`shrink-0 ${trade.type === 'buy' ? 'bg-green-600 hover:bg-green-700 text-xs' : 'text-xs'}`}
+            >
               {trade.type.toUpperCase()}
             </Badge>
-            <div>
+            <div className="min-w-0">
               <span className="font-medium">{trade.ticker}</span>
-              <span className="text-sm text-muted-foreground ml-2">
-                {formatShares(trade.shares)} shares
+              <span className="text-xs sm:text-sm text-muted-foreground ml-1 sm:ml-2">
+                {formatShares(trade.shares)} @ {formatCurrency(trade.price_cents)}
               </span>
             </div>
           </div>
-          <div className="text-right">
-            <div className="font-medium">{formatCurrency(trade.total_cents)}</div>
+          <div className="text-right shrink-0">
+            <div className="font-medium text-sm">{formatCurrency(trade.total_cents)}</div>
             <div className="text-xs text-muted-foreground">
               {new Date(trade.created_at).toLocaleDateString()}
             </div>

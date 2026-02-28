@@ -16,12 +16,12 @@ export function WeeklyChallengeList({ completedIds }: WeeklyChallengeListProps) 
         const isCompleted = completedIds.includes(challenge.id)
         return (
           <Card key={challenge.id} className={isCompleted ? 'opacity-60' : ''}>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="font-medium">{challenge.title}</p>
                 <p className="text-sm text-muted-foreground">{challenge.description}</p>
               </div>
-              <Badge variant={isCompleted ? 'secondary' : 'default'}>
+              <Badge variant={isCompleted ? 'secondary' : 'default'} className="shrink-0">
                 {isCompleted ? 'Done' : `+${challenge.reward}`}
               </Badge>
             </CardContent>

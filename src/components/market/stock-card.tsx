@@ -15,10 +15,10 @@ export function StockCard({ quote }: StockCardProps) {
 
   return (
     <Link href={`/stock/${quote.ticker}`}>
-      <Card className="hover:bg-accent/50 transition-colors cursor-pointer min-w-[160px]">
+      <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
         <CardContent className="p-3 space-y-1">
           <div className="font-semibold text-sm">{quote.ticker}</div>
-          <div className="text-xs text-muted-foreground truncate max-w-[140px]">
+          <div className="text-xs text-muted-foreground truncate">
             {quote.name}
           </div>
           <div className="font-medium">{formatDollars(quote.price)}</div>

@@ -26,12 +26,12 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-col items-center gap-1 px-2 py-1 text-xs transition-colors',
+                'flex flex-col items-center justify-center gap-0.5 min-w-[48px] min-h-[44px] px-1 text-xs transition-colors',
                 isActive ? 'text-primary' : 'text-muted-foreground'
               )}
             >
               <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
+              <span className="truncate max-w-[56px]">{item.label}</span>
             </Link>
           )
         })}
