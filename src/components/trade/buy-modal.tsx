@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTradeStore } from '@/stores/trade-store'
 import { usePortfolioStore } from '@/stores/portfolio-store'
-import { formatCurrency, formatDollars, formatShares } from '@/lib/utils'
+import { cn, formatCurrency, formatDollars, formatShares } from '@/lib/utils'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import type { Trade } from '@/types'
 
@@ -21,16 +21,26 @@ interface BuyModalProps {
 }
 
 export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuccess }: BuyModalProps) {
+  const [mode, setMode] = useState<'dollars' | 'shares'>('dollars')
   const [amount, setAmount] = useState('')
   const [completedTrade, setCompletedTrade] = useState<Trade | null>(null)
   const { executeBuy, isExecuting } = useTradeStore()
   const { fetchPortfolio } = usePortfolioStore()
 
-  const dollarAmount = parseFloat(amount) || 0
-  const amountCents = Math.round(dollarAmount * 100)
-  const estimatedShares = price > 0
+  // Dollars mode calculations
+  const dollarAmount = mode === 'dollars' ? (parseFloat(amount) || 0) : 0
+  const sharesInput = mode === 'shares' ? (parseFloat(amount) || 0) : 0
+
+  // Compute amountCents regardless of mode (needed for API call and validation)
+  const amountCents = mode === 'dollars'
+    ? Math.round(dollarAmount * 100)
+    : Math.round(sharesInput * price * 100)
+
+  // Estimated display values
+  const estimatedShares = mode === 'dollars' && price > 0
     ? Math.floor((dollarAmount / price) * 1e6) / 1e6
     : 0
+  const estimatedCost = mode === 'shares' ? sharesInput * price : 0
 
   const validationError = amount
     ? amountCents < 100
@@ -56,9 +66,26 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
   function handleClose() {
     if (completedTrade) onSuccess?.()
     setAmount('')
+    setMode('dollars')
     setCompletedTrade(null)
     onOpenChange(false)
   }
+
+  function handleMax() {
+    if (mode === 'dollars') {
+      setAmount((cashBalance / 100).toFixed(2))
+    } else {
+      const maxShares = price > 0
+        ? Math.floor((cashBalance / 100 / price) * 1e6) / 1e6
+        : 0
+      setAmount(maxShares.toString())
+    }
+  }
+
+  // Should we show the estimate line?
+  const showEstimate = mode === 'dollars'
+    ? dollarAmount >= 1 && !validationError
+    : sharesInput > 0 && !validationError
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -105,27 +132,52 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
               <span>{formatCurrency(cashBalance)}</span>
             </div>
 
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border p-0.5">
+              <button
+                className={cn(
+                  "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  mode === 'dollars' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => { setMode('dollars'); setAmount('') }}
+              >
+                Dollars
+              </button>
+              <button
+                className={cn(
+                  "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  mode === 'shares' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => { setMode('shares'); setAmount('') }}
+              >
+                Shares
+              </button>
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="buy-amount" className="text-sm font-medium">
-                Dollar Amount
+                {mode === 'dollars' ? 'Dollar Amount' : 'Number of Shares'}
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  {mode === 'dollars' && (
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  )}
                   <Input
                     id="buy-amount"
                     type="text"
                     inputMode="decimal"
-                    placeholder="0.00"
+                    placeholder={mode === 'dollars' ? '0.00' : '0'}
                     value={amount}
                     onChange={(e) => {
                       const v = e.target.value.replace(/[^0-9.]/g, '')
                       const parts = v.split('.')
                       if (parts.length > 2) return
-                      if (parts[1] && parts[1].length > 2) return
+                      const maxDecimals = mode === 'dollars' ? 2 : 6
+                      if (parts[1] && parts[1].length > maxDecimals) return
                       setAmount(v)
                     }}
-                    className="pl-7"
+                    className={mode === 'dollars' ? 'pl-7' : undefined}
                     autoFocus
                   />
                 </div>
@@ -133,16 +185,19 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
                   variant="outline"
                   size="sm"
                   className="h-9 px-3"
-                  onClick={() => setAmount((cashBalance / 100).toFixed(2))}
+                  onClick={handleMax}
                 >
                   Max
                 </Button>
               </div>
             </div>
 
-            {dollarAmount >= 1 && !validationError && (
+            {showEstimate && (
               <p className="text-sm text-muted-foreground">
-                ≈ {formatShares(estimatedShares)} shares
+                {mode === 'dollars'
+                  ? `≈ ${formatShares(estimatedShares)} shares`
+                  : `≈ ${formatDollars(estimatedCost)}`
+                }
               </p>
             )}
 

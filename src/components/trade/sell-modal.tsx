@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTradeStore } from '@/stores/trade-store'
 import { usePortfolioStore } from '@/stores/portfolio-store'
-import { formatCurrency, formatDollars, formatShares } from '@/lib/utils'
+import { cn, formatCurrency, formatDollars, formatShares } from '@/lib/utils'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import type { Trade } from '@/types'
 
@@ -21,20 +21,30 @@ interface SellModalProps {
 }
 
 export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSuccess }: SellModalProps) {
-  const [shares, setShares] = useState('')
+  const [mode, setMode] = useState<'shares' | 'dollars'>('shares')
+  const [input, setInput] = useState('')
   const [completedTrade, setCompletedTrade] = useState<Trade | null>(null)
   const { executeSell, isExecuting } = useTradeStore()
   const { fetchPortfolio } = usePortfolioStore()
 
-  const sharesToSell = parseFloat(shares) || 0
-  const estimatedValue = sharesToSell * price
+  // Compute sharesToSell regardless of mode (needed for API call)
+  const sharesToSell = mode === 'shares'
+    ? (parseFloat(input) || 0)
+    : price > 0
+      ? Math.floor(((parseFloat(input) || 0) / price) * 1e6) / 1e6
+      : 0
 
-  const validationError = shares
-    ? sharesToSell <= 0
-      ? 'Enter a valid number of shares'
-      : sharesToSell > sharesOwned
-        ? `You only own ${formatShares(sharesOwned)} shares`
-        : null
+  const dollarInput = mode === 'dollars' ? (parseFloat(input) || 0) : 0
+  const estimatedValue = mode === 'shares' ? sharesToSell * price : dollarInput
+
+  const validationError = input
+    ? mode === 'dollars' && dollarInput <= 0
+      ? 'Enter a valid amount'
+      : sharesToSell <= 0
+        ? 'Enter a valid amount'
+        : sharesToSell > sharesOwned
+          ? `You only own ${formatShares(sharesOwned)} shares`
+          : null
     : null
 
   async function handleSell() {
@@ -52,10 +62,24 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
 
   function handleClose() {
     if (completedTrade) onSuccess?.()
-    setShares('')
+    setInput('')
+    setMode('shares')
     setCompletedTrade(null)
     onOpenChange(false)
   }
+
+  function handleMax() {
+    if (mode === 'shares') {
+      setInput(sharesOwned.toString())
+    } else {
+      setInput((sharesOwned * price).toFixed(2))
+    }
+  }
+
+  // Should we show the estimate line?
+  const showEstimate = mode === 'shares'
+    ? sharesToSell > 0 && !validationError
+    : dollarInput > 0 && !validationError
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -102,40 +126,72 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
               <span>{formatShares(sharesOwned)} ({formatDollars(sharesOwned * price)})</span>
             </div>
 
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border p-0.5">
+              <button
+                className={cn(
+                  "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  mode === 'shares' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => { setMode('shares'); setInput('') }}
+              >
+                Shares
+              </button>
+              <button
+                className={cn(
+                  "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  mode === 'dollars' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => { setMode('dollars'); setInput('') }}
+              >
+                Dollars
+              </button>
+            </div>
+
             <div className="space-y-2">
-              <label htmlFor="sell-shares" className="text-sm font-medium">
-                Shares to Sell
+              <label htmlFor="sell-input" className="text-sm font-medium">
+                {mode === 'shares' ? 'Shares to Sell' : 'Dollar Amount'}
               </label>
               <div className="flex gap-2">
-                <Input
-                  id="sell-shares"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={shares}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/[^0-9.]/g, '')
-                    const parts = v.split('.')
-                    if (parts.length > 2) return
-                    if (parts[1] && parts[1].length > 6) return
-                    setShares(v)
-                  }}
-                  autoFocus
-                />
+                <div className="relative flex-1">
+                  {mode === 'dollars' && (
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  )}
+                  <Input
+                    id="sell-input"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder={mode === 'shares' ? '0' : '0.00'}
+                    value={input}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/[^0-9.]/g, '')
+                      const parts = v.split('.')
+                      if (parts.length > 2) return
+                      const maxDecimals = mode === 'shares' ? 6 : 2
+                      if (parts[1] && parts[1].length > maxDecimals) return
+                      setInput(v)
+                    }}
+                    className={mode === 'dollars' ? 'pl-7' : undefined}
+                    autoFocus
+                  />
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
                   className="h-9 px-3"
-                  onClick={() => setShares(sharesOwned.toString())}
+                  onClick={handleMax}
                 >
-                  Sell All
+                  Max
                 </Button>
               </div>
             </div>
 
-            {sharesToSell > 0 && !validationError && (
+            {showEstimate && (
               <p className="text-sm text-muted-foreground">
-                ≈ {formatDollars(estimatedValue)}
+                {mode === 'shares'
+                  ? `≈ ${formatDollars(estimatedValue)}`
+                  : `≈ ${formatShares(sharesToSell)} shares`
+                }
               </p>
             )}
 
