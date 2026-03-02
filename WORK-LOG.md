@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-03-02 (Phase 9 — v2 features round 2)
+> Last updated: 2026-03-02 (Stock detail page fixes — chart tooltip + buy/sell modals)
 
 ---
 
@@ -192,6 +192,33 @@ Delivered via 5 parallel agents (trade-history, portfolio-chart, tutorial, demo,
 
 ---
 
+### Stock Detail Page Fixes (commit 4b859fc, 4 files changed, 388 additions)
+
+#### Chart Crosshair Tooltip
+- `src/components/market/stock-chart.tsx`: Added `subscribeCrosshairMove` with price + timestamp overlay
+- Floating overlay (top-left, pointer-events-none) shows price via `formatDollars` and time via `formatChartTime`
+- `formatChartTime` helper: intraday (1D/1W) → `toLocaleTimeString`, daily+ → `toLocaleDateString`
+- `rangeRef` pattern to access current range inside callback without stale closure
+- Proper cleanup: `unsubscribeCrosshairMove` in useEffect return
+
+#### Buy/Sell Modals
+- `src/components/trade/buy-modal.tsx`: Enhanced with success state (shares, price, total + "View AI Analysis" link), `$` prefix input, inline validation (min $1, insufficient funds), "Max" button, `onSuccess` callback
+- `src/components/trade/sell-modal.tsx`: Enhanced with success state, "Sell All" button, validation (positive shares, can't exceed owned), estimated dollar value, destructive button styling
+- Both modals: `inputMode="decimal"` for mobile, input sanitization (strips non-numeric, prevents multiple dots, decimal place limits)
+
+#### Stock Detail Page Wiring
+- `src/app/(dashboard)/stock/[ticker]/page.tsx`: Replaced `<Link href="/dashboard">` buy button with modal trigger
+- Added Sell button (only visible when user holds shares of that stock)
+- Fetches portfolio via `usePortfolioStore` for cash balance and current holdings
+- `handleTradeSuccess` callback refreshes both quote and portfolio data after trade
+
+#### Build Stats
+- `npm run build`: 0 errors, 31 routes
+- `npm run lint`: 0 errors, 0 warnings
+- Deployed to Vercel production (https://paper-trading-app-delta.vercel.app)
+
+---
+
 ## In Progress
 Nothing currently in progress.
 
@@ -284,3 +311,7 @@ Nothing currently in progress.
 | `src/components/layout/sidebar.tsx` | modified | Fixed active state false positives with trailing slash check |
 | `src/components/landing/interactive-demo.tsx` | created+modified | Mini trading sim; timeout stored in animationRef for cleanup; merged duplicate imports |
 | `vercel.json` | created+modified | Cron job config; schedule updated to 22:00 UTC (after US market close) |
+| `src/components/market/stock-chart.tsx` | modified | Added crosshair tooltip overlay (subscribeCrosshairMove, formatChartTime) |
+| `src/components/trade/buy-modal.tsx` | modified | Success state, $ prefix, inline validation, Max button, onSuccess callback |
+| `src/components/trade/sell-modal.tsx` | modified | Success state, Sell All, validation, estimated value, destructive styling |
+| `src/app/(dashboard)/stock/[ticker]/page.tsx` | modified | Modal triggers, sell button, portfolio fetch, handleTradeSuccess |
