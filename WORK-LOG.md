@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-03-02 (code-improver + code-cleanup: 3 fixes on allocation-chart, buy-modal; deployed)
+> Last updated: 2026-03-02 (token balance sync fix: Zustand profile store for real-time header updates; deployed)
 
 ---
 
@@ -413,7 +413,7 @@ Nothing currently in progress.
 - **29 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status)
 - **Layout**: Desktop = left sidebar (w-64) + header + main. Mobile = bottom nav (h-16) + header + full-width. Both share 5 nav items: Dashboard, Explore, Rewards, Leaderboard, Settings.
 - **Dashboard layout**: `src/app/(dashboard)/layout.tsx` is a server component that does auth check + profile fetch.
-- **State management**: Zustand stores for portfolio and trade state; server components fetch directly from Supabase.
+- **State management**: Zustand stores for portfolio, trade, and profile state (token balance, display name); server components fetch directly from Supabase. Profile store hydrated via `<ProfileInitializer>` bridge component in dashboard layout.
 
 ### Critical Conventions
 - **All money = integer cents**. $10,000.00 = 1000000. Use `formatCurrency(cents)` for display.
@@ -510,6 +510,12 @@ Nothing currently in progress.
 | `src/lib/market/yahoo.ts` | modified | **72d93fc**: 5-day lookback for 1D (weekend/holiday fix), deduplicate + sort chart timestamps |
 | `src/components/market/stock-chart.tsx` | modified | **2f077a0**: rightOffset for 1D chart (extends x-axis to 8 PM ET), `timeVisible: true` for intraday x-axis labels; **a042e81**: replaced `setVisibleRange` with `rightOffset` + `fitContent()` (LWC v4 limitation fix), removed unused `dayStartUnix` |
 | `src/components/portfolio/allocation-chart.tsx` | modified | **1f8b5e5**: Removed Tooltip, added hoveredIndex state, center label shows hovered segment details dynamically |
+| `src/stores/profile-store.ts` | created | **e938b10**: Zustand store with tokenBalance, displayName, initProfile(), addTokens() |
+| `src/components/layout/profile-initializer.tsx` | created | **e938b10**: Client component bridging server-fetched profile data to Zustand store |
+| `src/components/layout/header.tsx` | modified | **e938b10**: Reads tokenBalance/displayName from useProfileStore instead of props |
+| `src/app/(dashboard)/layout.tsx` | modified | **e938b10**: Added ProfileInitializer, Header now takes no props |
+| `src/app/(dashboard)/rewards/page.tsx` | modified | **e938b10**: Calls addTokens() after daily reward claim |
+| `src/hooks/useTutorialStep.ts` | modified | **e938b10**: Calls addTokens() after tutorial step completion |
 
 ---
 
@@ -571,3 +577,36 @@ Ran code-improver and code-cleanup agents on 4 recently changed files (stock-cha
 - `npm run build`: 29 routes, 0 errors
 - `npm run lint`: 0 errors, 0 warnings
 - Deployed via `npx vercel --prod` — confirmed live at https://paper-trading-app-delta.vercel.app
+
+---
+
+### Token Balance Sync Fix — Zustand Profile Store (commit e938b10, 2026-03-02)
+Fixed a bug where claiming daily tokens on /rewards updated the rewards page balance but NOT the header token count — required a page refresh to see the correct value.
+
+#### Root Cause
+- Header read `token_balance` from server-side props (fetched once at layout render)
+- No mechanism existed to update the header client-side after mutations (daily reward claims, tutorial completions)
+
+#### Solution: Zustand Profile Store
+Created a new Zustand store following the same pattern as existing `portfolio-store` and `trade-store`, with a bridge component to hydrate client state from server-fetched data.
+
+#### New Files
+- `src/stores/profile-store.ts` — Zustand store with `tokenBalance`, `displayName`, `initProfile()`, `addTokens()`
+- `src/components/layout/profile-initializer.tsx` — Client component that hydrates the store from server-side layout data (bridge between server component and client store)
+
+#### Modified Files
+- `src/components/layout/header.tsx` — Removed `HeaderProps` interface; reads `tokenBalance` and `displayName` from `useProfileStore` instead of props
+- `src/app/(dashboard)/layout.tsx` — Added `<ProfileInitializer>` with server-fetched profile data; `<Header>` now takes no props
+- `src/app/(dashboard)/rewards/page.tsx` — Calls `addTokens(tokens)` after daily reward claim (in addition to existing local state update)
+- `src/hooks/useTutorialStep.ts` — Calls `addTokens(earned)` after tutorial step completion awards tokens
+
+#### How It Works
+1. Server layout fetches `token_balance` from Supabase, passes to `<ProfileInitializer>`
+2. `ProfileInitializer` hydrates the Zustand store on mount (one-time)
+3. Header reads from store reactively — any `addTokens()` call updates it instantly
+4. Both daily rewards and tutorial completions now trigger the same update path
+
+#### Build & Deploy
+- `npm run build`: 29 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings (fixed exhaustive-deps warning for `addTokens` in useEffect)
+- Deployed via `npx vercel --prod` to https://paper-trading-app-delta.vercel.app
