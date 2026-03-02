@@ -64,7 +64,7 @@ function getChartParams(range: TimeRange): {
 
   switch (range) {
     case '1D':
-      period1.setDate(now.getDate() - 1)
+      period1.setDate(now.getDate() - 5) // look back 5 days to cover weekends + holidays
       return { period1, interval: '5m', includePrePost: true }
     case '1W':
       period1.setDate(now.getDate() - 7)
@@ -94,6 +94,7 @@ export async function getChartData(ticker: string, range: TimeRange): Promise<Ch
     ...(includePrePost && { includePrePost: true }),
   })
 
+  const seen = new Set<string | number>()
   return (result.quotes ?? [])
     .filter((q) => q.close !== null && q.close !== undefined)
     .map((q) => ({
@@ -108,4 +109,10 @@ export async function getChartData(ticker: string, range: TimeRange): Promise<Ch
       value: q.close!,
       volume: q.volume ?? undefined,
     }))
+    .filter((d) => { // deduplicate timestamps (yahoo can return dupes with includePrePost)
+      if (seen.has(d.time)) return false
+      seen.add(d.time)
+      return true
+    })
+    .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
 }

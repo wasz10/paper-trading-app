@@ -72,7 +72,8 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
     if (mode === 'shares') {
       setInput(sharesOwned.toString())
     } else {
-      setInput((sharesOwned * price).toFixed(2))
+      // Floor to avoid rounding up past what shares are worth
+      setInput((Math.floor(sharesOwned * price * 100) / 100).toFixed(2))
     }
   }
 
@@ -129,6 +130,7 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
             {/* Mode toggle */}
             <div className="flex rounded-lg border p-0.5">
               <button
+                type="button"
                 className={cn(
                   "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   mode === 'shares' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
@@ -138,6 +140,7 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
                 Shares
               </button>
               <button
+                type="button"
                 className={cn(
                   "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   mode === 'dollars' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"

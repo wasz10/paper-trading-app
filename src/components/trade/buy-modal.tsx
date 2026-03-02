@@ -75,10 +75,13 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
     if (mode === 'dollars') {
       setAmount((cashBalance / 100).toFixed(2))
     } else {
-      const maxShares = price > 0
-        ? Math.floor((cashBalance / 100 / price) * 1e6) / 1e6
-        : 0
-      setAmount(maxShares.toString())
+      if (price <= 0) { setAmount('0'); return }
+      let maxShares = Math.floor((cashBalance / 100 / price) * 1e6) / 1e6
+      // Guard against FP rounding pushing cost above balance
+      if (Math.round(maxShares * price * 100) > cashBalance) {
+        maxShares = Math.floor(((cashBalance - 1) / 100 / price) * 1e6) / 1e6
+      }
+      setAmount(maxShares > 0 ? maxShares.toString() : '0')
     }
   }
 
@@ -135,6 +138,7 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
             {/* Mode toggle */}
             <div className="flex rounded-lg border p-0.5">
               <button
+                type="button"
                 className={cn(
                   "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   mode === 'dollars' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
@@ -144,6 +148,7 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
                 Dollars
               </button>
               <button
+                type="button"
                 className={cn(
                   "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   mode === 'shares' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"

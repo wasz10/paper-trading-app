@@ -29,9 +29,9 @@ function getETOffset(date: Date): number {
 function formatChartTime(time: string | number, range: TimeRange): string {
   if (INTRADAY_RANGES.has(range)) {
     const date = new Date((time as number) * 1000)
-    const datePart = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    const timePart = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-    return `${datePart}, ${timePart}`
+    const datePart = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })
+    const timePart = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' })
+    return `${datePart}, ${timePart} ET`
   }
   const date = new Date(time as string)
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -78,6 +78,7 @@ export function StockChart({ ticker }: StockChartProps) {
   }, [])
 
   useEffect(() => {
+    let active = true
     setIsLoading(true)
     const controller = new AbortController()
     fetch(`/api/market/chart/${ticker}?range=${range}`, { signal: controller.signal })
@@ -86,14 +87,19 @@ export function StockChart({ ticker }: StockChartProps) {
         return res.json()
       })
       .then((json) => {
-        setData(json.data ?? [])
+        if (active) setData(json.data ?? [])
       })
       .catch((err) => {
-        if ((err as Error).name !== 'AbortError') setData([])
+        if (active && (err as Error).name !== 'AbortError') setData([])
       })
-      .finally(() => setIsLoading(false))
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
 
-    return () => controller.abort()
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [ticker, range])
 
   useEffect(() => {
@@ -149,17 +155,17 @@ export function StockChart({ ticker }: StockChartProps) {
         height: window.innerWidth < 768 ? 300 : 400,
         timeScale: {
           borderColor,
-          tickMarkFormatter: (time: number) => {
-            if (rangeRef.current === '1D' || rangeRef.current === '1W') {
+          ...(INTRADAY_RANGES.has(rangeRef.current) && {
+            tickMarkFormatter: (time: number) => {
               const date = new Date(time * 1000)
               return date.toLocaleTimeString('en-US', {
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true,
+                timeZone: 'America/New_York',
               })
-            }
-            return undefined as unknown as string
-          },
+            },
+          }),
         },
         rightPriceScale: { borderColor },
       })
@@ -211,17 +217,20 @@ export function StockChart({ ticker }: StockChartProps) {
         const lastDate = new Date(lastTs * 1000)
         const etOffsetHours = getETOffset(lastDate)
 
-        // 4:00 AM ET in UTC
-        const dayStart = new Date(lastDate)
-        dayStart.setUTCHours(4 - etOffsetHours, 0, 0, 0)
-
-        // 8:00 PM ET in UTC
-        const dayEnd = new Date(lastDate)
-        dayEnd.setUTCHours(20 - etOffsetHours, 0, 0, 0)
+        // Use explicit UTC arithmetic to avoid setUTCHours overflow (24+ hours)
+        const utcMidnight = Date.UTC(
+          lastDate.getUTCFullYear(),
+          lastDate.getUTCMonth(),
+          lastDate.getUTCDate()
+        )
+        // 4:00 AM ET → UTC: add (4 - etOffset) hours
+        const dayStartMs = utcMidnight + (4 - etOffsetHours) * 3600_000
+        // 8:00 PM ET → UTC: add (20 - etOffset) hours
+        const dayEndMs = utcMidnight + (20 - etOffsetHours) * 3600_000
 
         chart.timeScale().setVisibleRange({
-          from: Math.floor(dayStart.getTime() / 1000) as Time,
-          to: Math.floor(dayEnd.getTime() / 1000) as Time,
+          from: Math.floor(dayStartMs / 1000) as Time,
+          to: Math.floor(dayEndMs / 1000) as Time,
         })
       } else {
         chart.timeScale().fitContent()
