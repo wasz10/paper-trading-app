@@ -54,14 +54,18 @@ export async function searchStocks(query: string): Promise<SearchResult[]> {
     }))
 }
 
-function getChartParams(range: TimeRange): { period1: Date; interval: '1m' | '5m' | '15m' | '30m' | '1d' | '1wk' | '1mo' } {
+function getChartParams(range: TimeRange): {
+  period1: Date
+  interval: '1m' | '5m' | '15m' | '30m' | '1d' | '1wk' | '1mo'
+  includePrePost?: boolean
+} {
   const now = new Date()
   const period1 = new Date(now)
 
   switch (range) {
     case '1D':
       period1.setDate(now.getDate() - 1)
-      return { period1, interval: '5m' }
+      return { period1, interval: '5m', includePrePost: true }
     case '1W':
       period1.setDate(now.getDate() - 7)
       return { period1, interval: '30m' }
@@ -81,12 +85,13 @@ function getChartParams(range: TimeRange): { period1: Date; interval: '1m' | '5m
 }
 
 export async function getChartData(ticker: string, range: TimeRange): Promise<ChartDataPoint[]> {
-  const { period1, interval } = getChartParams(range)
+  const { period1, interval, includePrePost } = getChartParams(range)
   const isIntraday = range === '1D' || range === '1W'
 
   const result = await yahooFinance.chart(ticker, {
     period1,
     interval,
+    ...(includePrePost && { includePrePost: true }),
   })
 
   return (result.quotes ?? [])
