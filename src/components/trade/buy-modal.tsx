@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ function sanitize(value: string, maxDecimals: number): string | null {
   const parts = v.split('.')
   if (parts.length > 2) return null
   if (parts[1] && parts[1].length > maxDecimals) return null
+  if (v === '.') return '0.'
   return v
 }
 
@@ -32,7 +33,6 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
   const [dollars, setDollars] = useState('')
   const [shares, setShares] = useState('')
   const [completedTrade, setCompletedTrade] = useState<Trade | null>(null)
-  const activeField = useRef<'dollars' | 'shares' | null>(null)
   const { executeBuy, isExecuting } = useTradeStore()
   const { fetchPortfolio } = usePortfolioStore()
 
@@ -69,7 +69,7 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
     // Sync dollars from shares
     const s = parseFloat(v) || 0
     if (s > 0) {
-      setDollars((s * price).toFixed(2))
+      setDollars((Math.round(s * price * 100) / 100).toFixed(2))
     } else {
       setDollars('')
     }
@@ -101,11 +101,12 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
   }
 
   function handleClose() {
-    if (completedTrade) onSuccess?.()
+    const hadTrade = !!completedTrade
     setDollars('')
     setShares('')
     setCompletedTrade(null)
     onOpenChange(false)
+    if (hadTrade) onSuccess?.()
   }
 
   const showSummary = dollarAmount >= 1 && sharesAmount > 0 && !validationError
@@ -169,7 +170,6 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
                     inputMode="decimal"
                     placeholder="0.00"
                     value={dollars}
-                    onFocus={() => { activeField.current = 'dollars' }}
                     onChange={(e) => handleDollarsChange(e.target.value)}
                     className="pl-7"
                     autoFocus
@@ -202,7 +202,6 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
                 inputMode="decimal"
                 placeholder="0"
                 value={shares}
-                onFocus={() => { activeField.current = 'shares' }}
                 onChange={(e) => handleSharesChange(e.target.value)}
               />
             </div>

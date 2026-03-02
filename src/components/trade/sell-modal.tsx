@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ function sanitize(value: string, maxDecimals: number): string | null {
   const parts = v.split('.')
   if (parts.length > 2) return null
   if (parts[1] && parts[1].length > maxDecimals) return null
+  if (v === '.') return '0.'
   return v
 }
 
@@ -32,19 +33,21 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
   const [shares, setShares] = useState('')
   const [dollars, setDollars] = useState('')
   const [completedTrade, setCompletedTrade] = useState<Trade | null>(null)
-  const activeField = useRef<'shares' | 'dollars' | null>(null)
   const { executeSell, isExecuting } = useTradeStore()
   const { fetchPortfolio } = usePortfolioStore()
 
   const sharesToSell = parseFloat(shares) || 0
   const dollarAmount = parseFloat(dollars) || 0
+  const proceedsCents = Math.round(sharesToSell * price * 100)
 
   const validationError = (shares || dollars)
     ? sharesToSell <= 0
       ? 'Enter a valid number of shares'
       : sharesToSell > sharesOwned
         ? `You only own ${formatShares(sharesOwned)} shares`
-        : null
+        : proceedsCents < 100
+          ? 'Minimum trade is $1.00'
+          : null
     : null
 
   function handleSharesChange(value: string) {
@@ -54,7 +57,7 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
     // Sync dollars from shares
     const s = parseFloat(v) || 0
     if (s > 0) {
-      setDollars((s * price).toFixed(2))
+      setDollars((Math.round(s * price * 100) / 100).toFixed(2))
     } else {
       setDollars('')
     }
@@ -75,8 +78,8 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
   }
 
   function handleSellAll() {
-    setShares(sharesOwned.toString())
-    setDollars((Math.floor(sharesOwned * price * 100) / 100).toFixed(2))
+    setShares(formatShares(sharesOwned))
+    setDollars((Math.round(sharesOwned * price * 100) / 100).toFixed(2))
   }
 
   async function handleSell() {
@@ -93,11 +96,12 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
   }
 
   function handleClose() {
-    if (completedTrade) onSuccess?.()
+    const hadTrade = !!completedTrade
     setShares('')
     setDollars('')
     setCompletedTrade(null)
     onOpenChange(false)
+    if (hadTrade) onSuccess?.()
   }
 
   const showSummary = sharesToSell > 0 && dollarAmount > 0 && !validationError
@@ -159,7 +163,6 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
                   inputMode="decimal"
                   placeholder="0"
                   value={shares}
-                  onFocus={() => { activeField.current = 'shares' }}
                   onChange={(e) => handleSharesChange(e.target.value)}
                   className="flex-1"
                   autoFocus
@@ -193,7 +196,6 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
                   inputMode="decimal"
                   placeholder="0.00"
                   value={dollars}
-                  onFocus={() => { activeField.current = 'dollars' }}
                   onChange={(e) => handleDollarsChange(e.target.value)}
                   className="pl-7"
                 />
