@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-03-02 (Modal code review fixes — sanitize, sell minimum, FP rounding, dead ref)
+> Last updated: 2026-03-02 (Deploy fixes, 1D chart full trading day, allocation chart hover fix)
 
 ---
 
@@ -344,6 +344,34 @@ Automated code review via code-improver agent on the 4 files changed in the prev
 
 ---
 
+### Deploy Fixes + 1D Chart + Allocation Hover (2026-03-02)
+Continuation session: verified earlier commits were pushed, fixed Vercel auto-deploy issues, improved 1D chart x-axis, and fixed allocation chart hover bug.
+
+#### Vercel Deploy Verification & Manual Deployment
+- Confirmed commits c6517b6 (bidirectional sync modals) and 96d2c63 (modal code review fixes) were pushed to GitHub
+- Discovered Vercel auto-deploy is broken — Git integration not triggering on push
+- Used `npx vercel --prod` (with `NODE_TLS_REJECT_UNAUTHORIZED=0` for corporate proxy) for all deployments this session
+- All deployments confirmed live at `https://paper-trading-app-delta.vercel.app`
+
+#### 1D Chart: Full Trading Day with Empty Space (commit 2f077a0)
+- `src/components/market/stock-chart.tsx`: Added `rightOffset` calculation — estimates bar interval from data, computes remaining bars until 8 PM ET, applies as rightOffset so the x-axis extends beyond the last data point
+- Added `timeVisible: true, secondsVisible: false` to timeScale options for intraday ranges — fixes x-axis showing "2" (day of month) instead of times
+- Kept `tickMarkFormatter` for ET timezone display on tick marks
+- `setVisibleRange` still pins 4 AM – 8 PM ET range
+
+#### Allocation Chart Hover Fix (commit 1f8b5e5)
+- `src/components/portfolio/allocation-chart.tsx`: Bug — hovering a donut segment showed a Tooltip label INSIDE the donut, overlapping with center "Total" text
+- Fix: removed `<Tooltip>` component entirely, added `useState` for `hoveredIndex`
+- Center `<Label>` now dynamically shows hovered segment name + value + percentage on mouse enter
+- Reverts to "Total" + total portfolio value on mouse leave
+- Added `onMouseEnter` per `<Cell>` and `onMouseLeave` on `<Pie>`
+
+#### Build Stats
+- `npm run build`: 29 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings
+
+---
+
 ## In Progress
 Nothing currently in progress.
 
@@ -354,7 +382,7 @@ Nothing currently in progress.
 - [ ] Add CRON_SECRET env var to Vercel for daily snapshot cron
 - [ ] Add SUPABASE_SERVICE_ROLE_KEY env var to Vercel for cron admin client
 - [ ] Configure Google OAuth in Supabase (needs Google client ID/secret)
-- [ ] Connect GitHub repo to Vercel for auto-deploy on push
+- [ ] Fix Vercel Git integration (auto-deploy not triggering on push — using manual `npx vercel --prod` as workaround)
 
 ---
 
@@ -387,6 +415,9 @@ Nothing currently in progress.
 - Code review fixes (commit 8f3808e) are deployed to production. All 14 identified issues resolved.
 - Code review fixes (commit 72d93fc) deployed. 9 issues fixed: ET timezone for charts, weekend/holiday 1D blank chart fix, FP rounding guards in modals, stale fetch prevention, timestamp dedup, button type safety.
 - Code review fixes (commit 96d2c63) deployed. 6 fixes: sanitize bare dot input, sell $1 minimum proceeds, cents-math FP rounding, formatShares in handleSellAll, removed dead activeField ref, safer handleClose ordering.
+- 1D chart rightOffset (commit 2f077a0): x-axis now extends to 8 PM ET even when data ends earlier; `timeVisible: true` fixes intraday axis labels.
+- Allocation chart hover (commit 1f8b5e5): removed Tooltip component, center label dynamically shows hovered segment details.
+- **Vercel auto-deploy is broken** — Git integration not triggering on push. Workaround: `NODE_TLS_REJECT_UNAUTHORIZED=0 npx vercel --prod` for manual deployment through corporate proxy.
 
 ### Database
 - **Supabase project**: ref `xteeugmsfirnqiphjjtg`, URL `https://xteeugmsfirnqiphjjtg.supabase.co`
@@ -456,6 +487,8 @@ Nothing currently in progress.
 | `src/components/trade/buy-modal.tsx` | modified | **c6517b6**: Bidirectional sync rewrite — two always-visible fields (dollars top + shares bottom), sanitize() helper, ArrowUpDown indicator, Max button, summary line; **96d2c63**: sanitize bare dot→"0.", cents-math FP rounding, removed dead activeField ref, safer handleClose ordering |
 | `src/components/trade/sell-modal.tsx` | modified | **c6517b6**: Bidirectional sync rewrite — two always-visible fields (shares top + dollars bottom), sanitize() helper, ArrowUpDown indicator, Sell All button, summary line; **96d2c63**: sanitize bare dot→"0.", $1 min proceeds check, cents-math FP rounding, formatShares in handleSellAll, removed dead activeField ref, safer handleClose ordering |
 | `src/lib/market/yahoo.ts` | modified | **72d93fc**: 5-day lookback for 1D (weekend/holiday fix), deduplicate + sort chart timestamps |
+| `src/components/market/stock-chart.tsx` | modified | **2f077a0**: rightOffset for 1D chart (extends x-axis to 8 PM ET), `timeVisible: true` for intraday x-axis labels |
+| `src/components/portfolio/allocation-chart.tsx` | modified | **1f8b5e5**: Removed Tooltip, added hoveredIndex state, center label shows hovered segment details dynamically |
 
 ---
 
