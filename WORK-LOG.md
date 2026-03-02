@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-03-02 (Code review fixes — ET timezone, weekend chart, FP rounding, stale fetch guard)
+> Last updated: 2026-03-02 (Modal code review fixes — sanitize, sell minimum, FP rounding, dead ref)
 
 ---
 
@@ -292,6 +292,33 @@ Delivered via 2 parallel agents. 3 commits pushed to GitHub, Vercel deploy trigg
 
 ---
 
+### Bidirectional Sync Rewrite — Buy/Sell Modals (commit c6517b6, 2026-03-02)
+Replaced the toggle-based single-input approach (dollars OR shares) with two always-visible, bidirectionally synced fields. Continuation of the previous session that delivered curated watchlists, stock stats, allocation chart, leaderboard periods, and stock chart improvements.
+
+#### Buy Modal (`src/components/trade/buy-modal.tsx`)
+- Dollar amount field (top, primary) + shares field (bottom), always visible simultaneously
+- Typing in one field auto-computes the other using current stock price
+- `sanitize()` helper for input validation (strips non-numeric chars, enforces decimal limits: 2dp for dollars, 6dp for shares)
+- ArrowUpDown icon as sync indicator between fields
+- Max button fills dollar field with full cash balance
+- Summary line: "Buying X shares for $Y"
+
+#### Sell Modal (`src/components/trade/sell-modal.tsx`)
+- Shares field (top, primary) + dollar estimate field (bottom), always visible simultaneously
+- Bidirectional sync: typing shares computes dollar estimate, typing dollars computes shares needed
+- `sanitize()` helper with same validation rules
+- ArrowUpDown sync indicator between fields
+- Sell All button fills shares field with total held shares
+- Summary line: "Selling X shares for $Y"
+
+#### Build & Deploy
+- `npm run build`: 29 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings
+- Committed as c6517b6: `feat: bidirectional sync for buy/sell modals — two always-visible inputs`
+- Pushed to GitHub, Vercel auto-deploy triggered
+
+---
+
 ### Code Review Fixes (commit 72d93fc, 4 files changed, 51 insertions, 27 deletions)
 Automated code review via code-improver agent on the 4 files changed in the previous session (stock-chart.tsx, yahoo.ts, buy-modal.tsx, sell-modal.tsx). 9 issues found and fixed across critical, important, and suggestion categories.
 
@@ -359,6 +386,7 @@ Nothing currently in progress.
 - ResizeObserver in stock-chart.tsx was leaking -- fixed with proper cleanup in useEffect.
 - Code review fixes (commit 8f3808e) are deployed to production. All 14 identified issues resolved.
 - Code review fixes (commit 72d93fc) deployed. 9 issues fixed: ET timezone for charts, weekend/holiday 1D blank chart fix, FP rounding guards in modals, stale fetch prevention, timestamp dedup, button type safety.
+- Code review fixes (commit 96d2c63) deployed. 6 fixes: sanitize bare dot input, sell $1 minimum proceeds, cents-math FP rounding, formatShares in handleSellAll, removed dead activeField ref, safer handleClose ordering.
 
 ### Database
 - **Supabase project**: ref `xteeugmsfirnqiphjjtg`, URL `https://xteeugmsfirnqiphjjtg.supabase.co`
@@ -425,6 +453,40 @@ Nothing currently in progress.
 | `src/app/api/leaderboard/route.ts` | modified | Queries portfolio_snapshots for period-based returns via admin client |
 | `src/lib/market/yahoo.ts` | modified | Added `includePrePost: true` for 1D range (extended hours data) |
 | `src/components/market/stock-chart.tsx` | modified | `getETOffset()` EDT/EST helper, full-day 1D range, `formatChartTime` date in tooltips, `tickMarkFormatter` x-axis labels; **72d93fc**: ET timezone fix, safe tickMarkFormatter, Date.UTC range calc, active flag for stale fetch |
-| `src/components/trade/buy-modal.tsx` | modified | Dual-input toggle (dollars/shares mode), max button per mode, `cn` import; **72d93fc**: FP rounding guard on max shares, `type="button"` on toggles |
-| `src/components/trade/sell-modal.tsx` | modified | Dual-input toggle (shares/dollars mode), max button per mode, `cn` import; **72d93fc**: `Math.floor` on max dollars, `type="button"` on toggles |
+| `src/components/trade/buy-modal.tsx` | modified | **c6517b6**: Bidirectional sync rewrite — two always-visible fields (dollars top + shares bottom), sanitize() helper, ArrowUpDown indicator, Max button, summary line; **96d2c63**: sanitize bare dot→"0.", cents-math FP rounding, removed dead activeField ref, safer handleClose ordering |
+| `src/components/trade/sell-modal.tsx` | modified | **c6517b6**: Bidirectional sync rewrite — two always-visible fields (shares top + dollars bottom), sanitize() helper, ArrowUpDown indicator, Sell All button, summary line; **96d2c63**: sanitize bare dot→"0.", $1 min proceeds check, cents-math FP rounding, formatShares in handleSellAll, removed dead activeField ref, safer handleClose ordering |
 | `src/lib/market/yahoo.ts` | modified | **72d93fc**: 5-day lookback for 1D (weekend/holiday fix), deduplicate + sort chart timestamps |
+
+---
+
+### Modal Code Review Fixes (commit 96d2c63, 2026-03-02)
+Resumed from context break. Previous session had completed the bidirectional sync rewrite for buy/sell modals but hadn't verified build/lint. This session verified, committed, ran code-improver, and applied fixes.
+
+#### Build Verification (bidirectional sync rewrite)
+- `npm run build`: 29 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings
+- Committed as c6517b6: `feat: bidirectional sync for buy/sell modals — two always-visible inputs`
+- Pushed to GitHub
+
+#### Code Review via code-improver Agent
+- Ran code-improver on `buy-modal.tsx` and `sell-modal.tsx`
+- 12 issues identified across both files
+- 6 fixes applied:
+
+**Bug fixes:**
+- `src/components/trade/buy-modal.tsx` + `sell-modal.tsx`: `sanitize(".")` now returns `"0."` instead of passing through — prevents NaN propagation when user types a bare decimal point
+- `src/components/trade/sell-modal.tsx`: Added $1.00 minimum proceeds check (`proceedsCents < 100`) — prevents dust sells that would create sub-dollar transactions
+
+**Precision fixes:**
+- `src/components/trade/buy-modal.tsx` + `sell-modal.tsx`: Shares-to-dollars sync uses `Math.round(s * price * 100) / 100` (cents math) — avoids floating-point drift in displayed dollar amounts
+- `src/components/trade/sell-modal.tsx`: `handleSellAll` uses `formatShares()` instead of `.toString()` — prevents scientific notation edge case for very small share counts
+
+**Cleanup fixes:**
+- `src/components/trade/buy-modal.tsx` + `sell-modal.tsx`: Removed dead `activeField` ref and `onFocus` handlers — ref was written but never read anywhere
+- `src/components/trade/buy-modal.tsx` + `sell-modal.tsx`: `handleClose` calls `onSuccess` after state reset — safer ordering prevents stale state in parent callbacks
+
+#### Build & Deploy
+- `npm run build`: 29 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings
+- Committed as 96d2c63: `fix: modal code review — sanitize bare dot, sell minimum, FP rounding, dead ref`
+- Pushed to GitHub, Vercel auto-deploy triggered
