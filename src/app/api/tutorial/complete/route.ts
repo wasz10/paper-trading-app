@@ -62,16 +62,25 @@ export async function POST(request: NextRequest) {
       tokensEarned += COMPLETION_BONUS.tokens
     }
 
-    // Update tutorial progress
-    await supabase
+    // Optimistic lock: only update if steps_completed hasn't changed since we read it
+    const { data: updatedProgress } = await supabase
       .from('tutorial_progress')
       .update({
         steps_completed: updatedSteps,
         completed_at: allComplete ? new Date().toISOString() : null,
       })
       .eq('user_id', user.id)
+      .eq('steps_completed', stepsCompleted)
+      .select('id')
 
-    // Award tokens to user balance
+    if (!updatedProgress || updatedProgress.length === 0) {
+      return NextResponse.json(
+        { error: 'Already processed, please refresh' },
+        { status: 409 }
+      )
+    }
+
+    // Award tokens with optimistic lock on token_balance
     const { data: profile } = await supabase
       .from('users')
       .select('token_balance')
@@ -79,20 +88,30 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profile) {
-      await supabase
+      const { data: updatedUser } = await supabase
         .from('users')
         .update({ token_balance: profile.token_balance + tokensEarned })
         .eq('id', user.id)
+        .eq('token_balance', profile.token_balance)
+        .select('id')
+
+      if (!updatedUser || updatedUser.length === 0) {
+        // Step was recorded but tokens weren't awarded due to concurrent balance change
+        // Return success with 0 tokens — step is complete, no double-award possible
+        tokensEarned = 0
+      }
 
       // Log token transaction
-      await supabase.from('token_transactions').insert({
-        user_id: user.id,
-        amount: tokensEarned,
-        reason: 'weekly_challenge' as const,
-        description: allComplete
-          ? `Tutorial complete! ${step.title} + bonus`
-          : `Tutorial: ${step.title}`,
-      })
+      if (tokensEarned > 0) {
+        await supabase.from('token_transactions').insert({
+          user_id: user.id,
+          amount: tokensEarned,
+          reason: 'weekly_challenge' as const,
+          description: allComplete
+            ? `Tutorial complete! ${step.title} + bonus`
+            : `Tutorial: ${step.title}`,
+        })
+      }
     }
 
     return NextResponse.json({

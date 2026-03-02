@@ -35,8 +35,8 @@ export async function POST() {
 
     const tokensEarned = getRewardForDay(newStreak)
 
-    // Update user
-    await supabase
+    // Optimistic lock: only update if last_login_date and token_balance haven't changed
+    const updateQuery = supabase
       .from('users')
       .update({
         current_streak: newStreak,
@@ -44,14 +44,32 @@ export async function POST() {
         token_balance: profile.token_balance + tokensEarned,
       })
       .eq('id', user.id)
+      .eq('token_balance', profile.token_balance)
 
-    // Insert daily reward record
-    await supabase.from('daily_rewards').insert({
-      user_id: user.id,
-      reward_date: today,
-      tokens_earned: tokensEarned,
-      streak_day: newStreak,
-    })
+    // Handle null vs non-null last_login_date for the optimistic lock
+    const { data: updated } = profile.last_login_date
+      ? await updateQuery.eq('last_login_date', profile.last_login_date).select('id')
+      : await updateQuery.is('last_login_date', null).select('id')
+
+    if (!updated || updated.length === 0) {
+      return NextResponse.json(
+        { error: 'Already claimed or balance changed, please refresh' },
+        { status: 409 }
+      )
+    }
+
+    // Insert daily reward record (unique constraint on user_id, reward_date as safety net)
+    try {
+      await supabase.from('daily_rewards').insert({
+        user_id: user.id,
+        reward_date: today,
+        tokens_earned: tokensEarned,
+        streak_day: newStreak,
+      })
+    } catch {
+      // Unique constraint violation — reward was already recorded by a concurrent request
+      // The optimistic lock above should prevent this, but handle gracefully
+    }
 
     // Insert token transaction
     await supabase.from('token_transactions').insert({
