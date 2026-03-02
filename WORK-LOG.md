@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-02-28
+> Last updated: 2026-03-02 (Phase 9 — v2 features round 2)
 
 ---
 
@@ -122,6 +122,74 @@ Delivered via 4 parallel agents (commit 5f36a78, 28 files changed, 1127 addition
 - Build + lint clean: 0 errors, 0 warnings
 - User tested: signup, onboarding, explore stocks -- all working
 
+### Code Review Fixes (commit 8f3808e, 11 files changed)
+Full automated code review via code-improver agent. 14 issues found and fixed across critical, important, and suggestion categories.
+
+**Critical fixes:**
+- `src/app/api/cron/snapshot/route.ts`: CRON_SECRET bypass closed — now returns HTTP 500 if the env var is missing instead of accepting "Bearer undefined"
+- `src/app/api/cron/snapshot/route.ts`: N sequential upserts replaced with a single batch upsert to prevent timeout at scale
+- `src/components/portfolio/performance-chart.tsx`: Tooltip double-conversion fixed — changed `formatCurrency(value*100)` to `formatDollars(value)` (value is already dollars)
+
+**Important fixes:**
+- `src/app/api/trade/history/route.ts`: Two DB queries merged into one using `{ count: 'exact' }` option
+- `src/app/api/portfolio/history/route.ts`: `?days=0` falsy bug fixed with explicit `isNaN` check instead of relying on JS truthiness
+- `vercel.json`: Cron schedule moved from midnight UTC (00:00) to 22:00 UTC — runs after US market close instead of mid-session
+- `src/components/landing/interactive-demo.tsx`: Confirmation setTimeout stored in `animationRef` for proper cleanup on unmount
+- `src/components/portfolio/performance-chart.tsx`: Added `AbortController` + `useReducer` to prevent race conditions on rapid period switching
+- `src/components/layout/bottom-nav.tsx`: Active state fixed — added trailing slash check to prevent `startsWith` false positives
+- `src/components/layout/sidebar.tsx`: Same active state trailing slash fix as bottom-nav
+- `src/components/market/stock-chart.tsx`: Added `res.ok` check + `AbortController` to fetch
+- `src/components/market/stock-search.tsx`: Added `AbortController` + `res.ok` check to debounced fetch (prevents stale search results)
+
+**Suggestions fixed:**
+- `src/components/landing/interactive-demo.tsx`: Merged duplicate `@/lib/utils` imports
+- `src/components/market/stock-chart.tsx`: Removed no-op ternary (`d.time === number ? d.time : d.time` → `d.time`)
+- `src/components/portfolio/performance-chart.tsx`: Removed unnecessary `handlePeriod` wrapper function
+
+### Deployment (post-code-review)
+- Redeployed to Vercel production at https://paper-trading-app-delta.vercel.app (commit 8f3808e)
+
+---
+
+### Phase 9 — v2 Features Round 2 (5 parallel agents, 2026-03-02)
+Delivered via 5 parallel agents (trade-history, portfolio-chart, tutorial, demo, integration).
+
+#### Trade History Enhancements
+- `src/components/trade/trade-history.tsx`: Added `limit` prop for dashboard "Recent Trades" (limit=5)
+- `src/app/api/trade/history/route.ts`: Already existed and functional (no changes needed)
+
+#### Portfolio Snapshots + Performance Chart Updates
+- `supabase/migrations/003_portfolio_snapshots.sql`: Upgrade total_value_cents, cash_cents, holdings_value_cents from INTEGER to BIGINT
+- `src/app/api/portfolio/history/route.ts`: Updated to accept `?period=1W|1M|3M|ALL` (backwards-compatible `?days=` fallback)
+- `src/components/portfolio/performance-chart.tsx`: Updated to use `?period=` param; empty state message: "Your first snapshot will appear tomorrow"
+
+#### Tutorial Quest System (13 new files)
+- `supabase/migrations/004_tutorial_progress.sql`: tutorial_progress table with RLS
+- `src/lib/game/tutorial.ts`: TUTORIAL_STEPS (5 steps), COMPLETION_BONUS (100 tokens + "Early Learner"), helpers
+- `src/app/api/tutorial/complete/route.ts`: POST — validate step, mark complete, award tokens, bonus on all-5
+- `src/app/api/tutorial/status/route.ts`: GET — progress, counts, tokens earned/remaining
+- `src/hooks/useTutorialStep.ts`: Auto-complete hook (on mount, checks + completes step)
+- 4 UI variants: tutorial-checklist (dashboard card), tutorial-walkthrough (guided overlay), tutorial-quest-log (floating panel), tutorial-banner (page-contextual)
+- `src/components/tutorial/tutorial-switcher.tsx`: Renders correct variant based on localStorage `tutorial_style`
+- `src/components/tutorial/tutorial-toast.tsx`: Completion toast (auto-dismiss 4s)
+
+#### Interactive Landing Demo Rewrite
+- `src/components/landing/interactive-demo.tsx`: Full rewrite — live price ticker (4 stocks, 2.5s random walk), buy/sell buttons, Market/Portfolio tabs, real-time P&L, trade notifications, CTA to signup
+
+#### Dashboard Integration + QA
+- `src/app/(dashboard)/dashboard/page.tsx`: Integrated TutorialSwitcher, TutorialToast, useTutorialStep('check_portfolio'), TradeHistory limit=5
+- Tutorial hooks wired: explore (find_stock), trade detail (first_trade + meet_ai_coach), rewards (claim_reward)
+- `src/app/(dashboard)/settings/page.tsx`: Tutorial Style selector (5 options, localStorage)
+- `src/components/layout/header.tsx`: Clickable tokens→/rewards, avatar→/settings, CSS tooltips on all items
+- 8 touch target fixes (44px minimum) across category chips, chart buttons, tutorial components
+- Duplicate import cleanup in leaderboard components
+- Lint fixes: settings useEffect setState warning, trade-history missing dep
+
+#### Build Stats
+- `npm run build`: 0 errors, 31 routes (10 static, 21 dynamic) — up from 27 routes
+- `npm run lint`: 0 errors, 0 warnings
+- `QA-REPORT.md`: Updated with v2 integration audit
+
 ---
 
 ## In Progress
@@ -141,7 +209,7 @@ Nothing currently in progress.
 ## Known Issues / Context
 
 ### Architecture
-- **27 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot)
+- **31 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status)
 - **Layout**: Desktop = left sidebar (w-64) + header + main. Mobile = bottom nav (h-16) + header + full-width. Both share 5 nav items: Dashboard, Explore, Rewards, Leaderboard, Settings.
 - **Dashboard layout**: `src/app/(dashboard)/layout.tsx` is a server component that does auth check + profile fetch.
 - **State management**: Zustand stores for portfolio and trade state; server components fetch directly from Supabase.
@@ -159,20 +227,21 @@ Nothing currently in progress.
 ### Technical Gotchas
 - AI coach will 500 error until ANTHROPIC_API_KEY is added to Vercel env vars.
 - Google OAuth button is rendered but has no server-side config -- clicking it will fail.
-- Cron job at `/api/cron/snapshot` needs CRON_SECRET and SUPABASE_SERVICE_ROLE_KEY env vars in Vercel before it will run successfully.
-- Portfolio performance chart shows empty state ("No data yet — check back tomorrow!") until the cron has run at least once and populated `portfolio_snapshots`.
+- Cron job at `/api/cron/snapshot` needs CRON_SECRET and SUPABASE_SERVICE_ROLE_KEY env vars in Vercel before it will run successfully. Note: cron now fails closed (HTTP 500) if CRON_SECRET is missing — it no longer silently accepts "Bearer undefined".
+- Portfolio performance chart shows empty state ("No data yet — check back tomorrow!") until the cron has run at least once and populated `portfolio_snapshots`. Cron now runs at 22:00 UTC (after US market close).
 - Interactive landing page demo uses mock data only — no API calls are made.
 - yahoo-finance2 occasionally returns zero prices -- the zero-price rejection in `yahoo.ts` handles this.
 - ResizeObserver in stock-chart.tsx was leaking -- fixed with proper cleanup in useEffect.
+- Code review fixes (commit 8f3808e) are deployed to production. All 14 identified issues resolved.
 
 ### Database
 - **Supabase project**: ref `xteeugmsfirnqiphjjtg`, URL `https://xteeugmsfirnqiphjjtg.supabase.co`
-- **Tables**: users, holdings, trades, daily_rewards, token_transactions, leaderboard_cache, portfolio_snapshots
+- **Tables**: users, holdings, trades, daily_rewards, token_transactions, leaderboard_cache, portfolio_snapshots, tutorial_progress
 - **RLS**: enabled on all tables. Users read/write own data only. leaderboard_cache is public SELECT.
-- **Migrations**: `supabase/migrations/001_initial_schema.sql`, `002_architecture_additions.sql`
+- **Migrations**: `001_initial_schema.sql`, `002_architecture_additions.sql`, `003_portfolio_snapshots.sql`, `004_tutorial_progress.sql`
 
 ### Git
-- **Branch**: master, 7 commits, build + lint clean (latest: 5f36a78)
+- **Branch**: master, build + lint clean (0 errors, 0 warnings)
 - **GitHub**: https://github.com/wasz10/paper-trading-app
 
 ### Workflow
@@ -188,7 +257,6 @@ Nothing currently in progress.
 |------|--------|-------|
 | `src/lib/trading/engine.ts` | modified | Added optimistic locking, holding error rollback |
 | `src/lib/market/yahoo.ts` | modified | Zero-price rejection, intraday timestamp fix |
-| `src/components/market/stock-chart.tsx` | modified | ResizeObserver leak fix, TradingView logo removed, Time type cast |
 | `src/types/index.ts` | modified | ChartDataPoint.time now `string\|number` |
 | `src/app/api/leaderboard/route.ts` | created | Leaderboard API with batch price fetching |
 | `src/lib/leaderboard/calculations.ts` | created | Return %, portfolio value, display name logic |
@@ -202,13 +270,17 @@ Nothing currently in progress.
 | `src/components/auth/onboarding-flow.tsx` | modified | Removed client-supplied financial values |
 | `src/stores/portfolio-store.ts` | modified | Added `res.ok` check |
 | `src/stores/trade-store.ts` | modified | Added `res.ok` check |
-| `src/app/api/trade/history/route.ts` | created | Trade history API with pagination |
-| `src/app/api/portfolio/history/route.ts` | created | Portfolio history API (?days=30) |
-| `src/app/api/cron/snapshot/route.ts` | created | Daily cron to snapshot portfolio values |
 | `src/lib/supabase/admin.ts` | created | Supabase admin client (bypasses RLS) |
-| `src/components/landing/interactive-demo.tsx` | created | Client-side mini trading sim for landing page |
-| `src/components/portfolio/performance-chart.tsx` | modified | Full Recharts LineChart with period selector |
 | `src/components/trade/trade-history.tsx` | modified | Fetches real trade data from API |
-| `vercel.json` | created | Cron job config (daily midnight UTC) |
 | `QA-REPORT.md` | created | Full mobile/dark-mode QA audit |
 | *(16 additional files)* | modified | Mobile responsiveness, touch targets, dark mode fixes |
+| `src/app/api/cron/snapshot/route.ts` | created+modified | Daily cron; hardened: fails closed on missing CRON_SECRET, single batch upsert |
+| `src/app/api/trade/history/route.ts` | created+modified | Trade history API; combined 2 DB queries into 1 with `{ count: 'exact' }` |
+| `src/app/api/portfolio/history/route.ts` | created+modified | Portfolio history API; fixed `?days=0` falsy bug with explicit `isNaN` check |
+| `src/components/portfolio/performance-chart.tsx` | modified | Recharts LineChart; useReducer + AbortController (race conditions); formatDollars tooltip fix |
+| `src/components/market/stock-chart.tsx` | modified | ResizeObserver leak fix, TradingView logo removed; `res.ok` check + AbortController; no-op ternary removed |
+| `src/components/market/stock-search.tsx` | modified | AbortController + `res.ok` check to debounced fetch (prevents stale results) |
+| `src/components/layout/bottom-nav.tsx` | modified | Fixed active state false positives with trailing slash check |
+| `src/components/layout/sidebar.tsx` | modified | Fixed active state false positives with trailing slash check |
+| `src/components/landing/interactive-demo.tsx` | created+modified | Mini trading sim; timeout stored in animationRef for cleanup; merged duplicate imports |
+| `vercel.json` | created+modified | Cron job config; schedule updated to 22:00 UTC (after US market close) |

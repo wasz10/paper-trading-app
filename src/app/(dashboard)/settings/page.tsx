@@ -7,7 +7,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { LogOut, Save, Loader2 } from 'lucide-react'
+import { LogOut, Save, Loader2, GraduationCap } from 'lucide-react'
+import type { TutorialStyle } from '@/components/tutorial/tutorial-switcher'
+
+const TUTORIAL_STYLE_OPTIONS: { value: TutorialStyle; label: string }[] = [
+  { value: 'checklist', label: 'Dashboard Card' },
+  { value: 'walkthrough', label: 'Guided Walkthrough' },
+  { value: 'quest-log', label: 'Quest Log' },
+  { value: 'banner', label: 'Page Banners' },
+  { value: 'off', label: 'Off' },
+]
 
 const TIMEZONES = [
   { value: 'America/New_York', label: 'Eastern (ET)' },
@@ -29,6 +38,14 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [tutorialStyle, setTutorialStyle] = useState<TutorialStyle>('banner')
+
+  // Load tutorial style from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('tutorial_style') as TutorialStyle | null
+    if (saved && saved !== tutorialStyle) setTutorialStyle(saved)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     async function loadProfile() {
@@ -195,6 +212,54 @@ export default function SettingsPage() {
             )}
             {isSaving ? 'Saving...' : 'Save Changes'}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            Tutorial Style
+          </CardTitle>
+          <CardDescription>Choose how tutorial quests appear in the app</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {TUTORIAL_STYLE_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                  tutorialStyle === option.value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:bg-accent'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="tutorial_style"
+                  value={option.value}
+                  checked={tutorialStyle === option.value}
+                  onChange={() => {
+                    setTutorialStyle(option.value)
+                    localStorage.setItem('tutorial_style', option.value)
+                  }}
+                  className="sr-only"
+                />
+                <div
+                  className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                    tutorialStyle === option.value
+                      ? 'border-primary'
+                      : 'border-muted-foreground'
+                  }`}
+                >
+                  {tutorialStyle === option.value && (
+                    <div className="h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </div>
+                <span className="text-sm font-medium">{option.label}</span>
+              </label>
+            ))}
+          </div>
         </CardContent>
       </Card>
 

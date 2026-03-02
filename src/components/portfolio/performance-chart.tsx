@@ -17,13 +17,6 @@ import type { PortfolioSnapshot } from '@/types'
 
 type Period = '1W' | '1M' | '3M' | 'ALL'
 
-const PERIOD_DAYS: Record<Period, number> = {
-  '1W': 7,
-  '1M': 30,
-  '3M': 90,
-  'ALL': 365,
-}
-
 const PERIODS: Period[] = ['1W', '1M', '3M', 'ALL']
 
 interface ChartPoint {
@@ -53,7 +46,7 @@ export function PerformanceChart() {
     const controller = new AbortController()
     dispatch({ type: 'fetch' })
 
-    fetch(`/api/portfolio/history?days=${PERIOD_DAYS[period]}`, { signal: controller.signal })
+    fetch(`/api/portfolio/history?period=${period}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) { dispatch({ type: 'error' }); return }
         return res.json()
@@ -92,7 +85,7 @@ export function PerformanceChart() {
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                className={`px-3 py-1.5 text-xs rounded-md transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ${
                   period === p
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-muted'
@@ -109,7 +102,7 @@ export function PerformanceChart() {
           <Skeleton className="h-[200px] w-full" />
         ) : data.length === 0 ? (
           <div className="flex items-center justify-center h-[200px] text-sm text-muted-foreground">
-            No data yet — check back tomorrow!
+            Your first snapshot will appear tomorrow
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>

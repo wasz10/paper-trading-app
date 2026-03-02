@@ -19,7 +19,7 @@ export function MarketHoursBanner() {
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 shrink-0"
+        className="h-9 w-9 shrink-0 min-h-[44px] min-w-[44px]"
         onClick={() => {
           setDismissed(true)
           sessionStorage.setItem('market-banner-dismissed', 'true')

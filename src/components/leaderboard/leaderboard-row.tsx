@@ -1,8 +1,7 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
-import { formatPercent } from '@/lib/utils'
+import { cn, formatPercent } from '@/lib/utils'
 import type { LeaderboardEntry } from '@/types'
 
 const rankMedals: Record<number, { emoji: string; label: string }> = {

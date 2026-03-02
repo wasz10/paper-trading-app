@@ -9,9 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ArrowLeft } from 'lucide-react'
 import { formatCurrency, formatShares } from '@/lib/utils'
 import { TradeAnalysisCard } from '@/components/ai/trade-analysis-card'
+import { useTutorialStep } from '@/hooks/useTutorialStep'
 import type { Trade } from '@/types'
 
 export default function TradeDetailPage() {
+  // Auto-complete tutorial steps when viewing a trade
+  useTutorialStep('first_trade')
+  useTutorialStep('meet_ai_coach')
   const params = useParams()
   const router = useRouter()
   const [trade, setTrade] = useState<Trade | null>(null)

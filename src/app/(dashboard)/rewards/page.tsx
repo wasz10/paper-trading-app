@@ -7,6 +7,7 @@ import { StreakDisplay } from '@/components/rewards/streak-display'
 import { DailyRewardModal } from '@/components/rewards/daily-reward-modal'
 import { TokenBalance } from '@/components/rewards/token-balance'
 import { WeeklyChallengeList } from '@/components/rewards/weekly-challenge'
+import { useTutorialStep } from '@/hooks/useTutorialStep'
 
 interface RewardStatus {
   currentStreak: number
@@ -17,6 +18,9 @@ interface RewardStatus {
 }
 
 export default function RewardsPage() {
+  // Auto-complete "claim_reward" tutorial step when page is visited
+  useTutorialStep('claim_reward')
+
   const [status, setStatus] = useState<RewardStatus | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showClaimModal, setShowClaimModal] = useState(false)

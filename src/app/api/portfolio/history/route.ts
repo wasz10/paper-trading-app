@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { PortfolioSnapshot } from '@/types'
 
+type Period = '1W' | '1M' | '3M' | 'ALL'
+
+const PERIOD_DAYS: Record<Period, number> = {
+  '1W': 7,
+  '1M': 30,
+  '3M': 90,
+  'ALL': 365,
+}
+
+function isValidPeriod(value: string | null): value is Period {
+  return value !== null && value in PERIOD_DAYS
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -12,8 +25,16 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = request.nextUrl
-    const rawDays = parseInt(searchParams.get('days') ?? '30', 10)
-    const days = Math.min(Math.max(isNaN(rawDays) ? 30 : rawDays, 1), 365)
+    const periodParam = searchParams.get('period')
+
+    // Support both ?period=1W and legacy ?days=30
+    let days: number
+    if (isValidPeriod(periodParam)) {
+      days = PERIOD_DAYS[periodParam]
+    } else {
+      const rawDays = parseInt(searchParams.get('days') ?? '30', 10)
+      days = Math.min(Math.max(isNaN(rawDays) ? 30 : rawDays, 1), 365)
+    }
 
     const since = new Date()
     since.setDate(since.getDate() - days)

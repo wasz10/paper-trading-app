@@ -17,7 +17,7 @@ export function CategoryChips({ selected, onSelect }: CategoryChipsProps) {
           key={cat.id}
           variant={selected === cat.id ? 'default' : 'outline'}
           size="sm"
-          className={cn('shrink-0 min-h-[36px]', selected === cat.id && 'pointer-events-none')}
+          className={cn('shrink-0 min-h-[44px]', selected === cat.id && 'pointer-events-none')}
           onClick={() => onSelect(cat.id)}
         >
           {cat.label}

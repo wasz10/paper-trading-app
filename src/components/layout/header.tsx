@@ -32,16 +32,40 @@ export function Header({ displayName, tokenBalance = 0 }: HeaderProps) {
       <div className="hidden md:block text-lg font-semibold">Dashboard</div>
 
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+        {/* Token balance — click to go to rewards */}
+        <button
+          onClick={() => router.push('/rewards')}
+          className="group relative flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
           <Coins className="h-4 w-4 text-yellow-500" />
           <span>{tokenBalance}</span>
+          <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md border opacity-0 group-hover:opacity-100 transition-opacity">
+            Your Tokens — Earn more daily!
+          </span>
+        </button>
+
+        {/* Avatar — click to go to settings */}
+        <button
+          onClick={() => router.push('/settings')}
+          className="group relative"
+        >
+          <Avatar className="h-8 w-8 cursor-pointer">
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+          </Avatar>
+          <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md border opacity-0 group-hover:opacity-100 transition-opacity">
+            Profile &amp; Settings
+          </span>
+        </button>
+
+        {/* Logout button */}
+        <div className="group relative">
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="h-9 w-9">
+            <LogOut className="h-4 w-4" />
+          </Button>
+          <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md border opacity-0 group-hover:opacity-100 transition-opacity">
+            Sign Out
+          </span>
         </div>
-        <Avatar className="h-8 w-8">
-          <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-        </Avatar>
-        <Button variant="ghost" size="icon" onClick={handleLogout} className="h-9 w-9">
-          <LogOut className="h-4 w-4" />
-        </Button>
       </div>
     </header>
   )

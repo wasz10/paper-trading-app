@@ -7,14 +7,18 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { formatCurrency, formatShares } from '@/lib/utils'
 import type { Trade } from '@/types'
 
-export function TradeHistory() {
+interface TradeHistoryProps {
+  limit?: number
+}
+
+export function TradeHistory({ limit = 20 }: TradeHistoryProps) {
   const [trades, setTrades] = useState<Trade[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     async function fetchTrades() {
       try {
-        const res = await fetch('/api/trade/history?limit=20&offset=0')
+        const res = await fetch(`/api/trade/history?limit=${limit}&offset=0`)
         if (!res.ok) return
         const json = await res.json()
         setTrades(json.data ?? [])
@@ -25,7 +29,7 @@ export function TradeHistory() {
       }
     }
     fetchTrades()
-  }, [])
+  }, [limit])
 
   if (isLoading) {
     return (
