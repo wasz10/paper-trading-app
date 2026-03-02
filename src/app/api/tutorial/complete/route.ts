@@ -62,23 +62,16 @@ export async function POST(request: NextRequest) {
       tokensEarned += COMPLETION_BONUS.tokens
     }
 
-    // Optimistic lock: only update if steps_completed hasn't changed since we read it
-    const { data: updatedProgress } = await supabase
+    // Update tutorial progress — no JSONB optimistic lock (PostgREST can't reliably
+    // compare JSONB key order). Instead, the "already completed" check above + the
+    // token_balance optimistic lock below together prevent double-awards.
+    await supabase
       .from('tutorial_progress')
       .update({
         steps_completed: updatedSteps,
-        completed_at: allComplete ? new Date().toISOString() : null,
+        completed_at: allComplete ? new Date().toISOString() : progress.completed_at,
       })
       .eq('user_id', user.id)
-      .eq('steps_completed', stepsCompleted)
-      .select('id')
-
-    if (!updatedProgress || updatedProgress.length === 0) {
-      return NextResponse.json(
-        { error: 'Already processed, please refresh' },
-        { status: 409 }
-      )
-    }
 
     // Award tokens with optimistic lock on token_balance
     const { data: profile } = await supabase
@@ -101,7 +94,7 @@ export async function POST(request: NextRequest) {
         tokensEarned = 0
       }
 
-      // Log token transaction
+      // Log token transaction only if tokens were awarded
       if (tokensEarned > 0) {
         await supabase.from('token_transactions').insert({
           user_id: user.id,

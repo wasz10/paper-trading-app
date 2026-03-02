@@ -11,6 +11,9 @@ type Period = 'daily' | 'weekly' | 'all-time'
 
 export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
+  const [currentUserEntry, setCurrentUserEntry] = useState<LeaderboardEntry | null>(null)
+  const [currentUserRank, setCurrentUserRank] = useState<number | null>(null)
+  const [totalTraders, setTotalTraders] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [period, setPeriod] = useState<Period>('all-time')
 
@@ -18,9 +21,18 @@ export default function LeaderboardPage() {
     setIsLoading(true)
     try {
       const res = await fetch(`/api/leaderboard?period=${p}`)
+      if (!res.ok) return
       const json = await res.json()
       if (json.data) {
         setEntries(json.data)
+        setTotalTraders(json.totalTraders ?? json.data.length)
+        if (json.currentUser) {
+          setCurrentUserEntry(json.currentUser.entry)
+          setCurrentUserRank(json.currentUser.rank)
+        } else {
+          setCurrentUserEntry(null)
+          setCurrentUserRank(null)
+        }
       }
     } catch {
       // Silently fail — table will show empty state
@@ -32,11 +44,6 @@ export default function LeaderboardPage() {
   useEffect(() => {
     fetchLeaderboard(period)
   }, [period, fetchLeaderboard])
-
-  const currentUserEntry = entries.find((e) => e.is_current_user) ?? null
-  const currentUserRank = currentUserEntry
-    ? entries.findIndex((e) => e.is_current_user) + 1
-    : null
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -50,7 +57,7 @@ export default function LeaderboardPage() {
       <UserRankCard
         entry={currentUserEntry}
         rank={currentUserRank}
-        totalTraders={entries.length}
+        totalTraders={totalTraders}
         isLoading={isLoading}
       />
 

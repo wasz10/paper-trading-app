@@ -48,7 +48,7 @@ export function LeaderboardTable({ entries, isLoading }: LeaderboardTableProps) 
       {/* Rows */}
       {entries.map((entry, index) => (
         <LeaderboardRow
-          key={index}
+          key={entry.display_name}
           entry={entry}
           rank={index + 1}
           isCurrentUser={entry.is_current_user}

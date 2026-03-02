@@ -10,7 +10,6 @@ import {
   calculatePortfolioValue,
   getDisplayName,
   getPeriodSnapshotDate,
-  rankEntries,
 } from '@/lib/leaderboard/calculations'
 import type { LeaderboardPeriod } from '@/lib/leaderboard/calculations'
 import type { LeaderboardEntry, StockQuote } from '@/types'
@@ -134,9 +133,18 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const ranked = rankEntries(entries, 50)
+    // Sort all entries to compute accurate rank before slicing
+    const allSorted = [...entries].sort((a, b) => b.total_return_pct - a.total_return_pct)
+    const currentUserRank = allSorted.findIndex((e) => e.is_current_user) + 1
+    const currentUserEntry = allSorted.find((e) => e.is_current_user) ?? null
 
-    return NextResponse.json({ data: ranked })
+    const ranked = allSorted.slice(0, 50)
+
+    return NextResponse.json({
+      data: ranked,
+      currentUser: currentUserEntry ? { entry: currentUserEntry, rank: currentUserRank } : null,
+      totalTraders: allSorted.length,
+    })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
