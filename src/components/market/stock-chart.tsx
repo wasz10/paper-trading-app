@@ -1,12 +1,23 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { formatDollars } from '@/lib/utils'
 import type { ChartDataPoint } from '@/types'
 import type { TimeRange, ChartType } from '@/types/market'
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '1Y', 'ALL']
+const INTRADAY_RANGES = new Set<TimeRange>(['1D', '1W'])
+
+function formatChartTime(time: string | number, range: TimeRange): string {
+  if (INTRADAY_RANGES.has(range)) {
+    const date = new Date((time as number) * 1000)
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  }
+  const date = new Date(time as string)
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 interface StockChartProps {
   ticker: string
@@ -19,6 +30,34 @@ export function StockChart({ ticker }: StockChartProps) {
   const [chartType, setChartType] = useState<ChartType>('area')
   const [data, setData] = useState<ChartDataPoint[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [hoverInfo, setHoverInfo] = useState<{ price: number; time: string } | null>(null)
+
+  const rangeRef = useRef(range)
+  rangeRef.current = range
+
+  const latestPrice = data.length > 0 ? data[data.length - 1].close : null
+  const latestTime = data.length > 0 ? formatChartTime(data[data.length - 1].time, range) : ''
+
+  const handleCrosshairMove = useCallback((param: { time?: unknown; seriesData?: Map<unknown, unknown> }) => {
+    if (!param.time || !param.seriesData || param.seriesData.size === 0) {
+      setHoverInfo(null)
+      return
+    }
+
+    let price: number | null = null
+    for (const val of param.seriesData.values()) {
+      const v = val as Record<string, number>
+      if (v.close != null) { price = v.close; break }
+      if (v.value != null) { price = v.value; break }
+    }
+
+    if (price != null) {
+      setHoverInfo({
+        price,
+        time: formatChartTime(param.time as string | number, rangeRef.current),
+      })
+    }
+  }, [])
 
   useEffect(() => {
     setIsLoading(true)
@@ -46,7 +85,7 @@ export function StockChart({ ticker }: StockChartProps) {
     let observer: ResizeObserver | null = null
 
     async function renderChart() {
-      const { createChart, ColorType } = await import('lightweight-charts')
+      const { createChart, ColorType, CrosshairMode } = await import('lightweight-charts')
       type Time = import('lightweight-charts').Time
 
       if (cancelled || !chartContainerRef.current) return
@@ -72,6 +111,21 @@ export function StockChart({ ticker }: StockChartProps) {
         grid: {
           vertLines: { color: gridColor },
           horzLines: { color: gridColor },
+        },
+        crosshair: {
+          mode: CrosshairMode.Normal,
+          vertLine: {
+            color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+            style: 3,
+            width: 1,
+            labelVisible: false,
+          },
+          horzLine: {
+            color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+            style: 3,
+            width: 1,
+            labelVisible: true,
+          },
         },
         width: chartContainerRef.current.clientWidth,
         height: window.innerWidth < 768 ? 300 : 400,
@@ -122,6 +176,8 @@ export function StockChart({ ticker }: StockChartProps) {
 
       chart.timeScale().fitContent()
 
+      chart.subscribeCrosshairMove(handleCrosshairMove)
+
       observer = new ResizeObserver(() => {
         if (chartContainerRef.current) {
           chart.applyOptions({ width: chartContainerRef.current.clientWidth })
@@ -136,11 +192,15 @@ export function StockChart({ ticker }: StockChartProps) {
       cancelled = true
       observer?.disconnect()
       if (chartRef.current) {
+        chartRef.current.unsubscribeCrosshairMove(handleCrosshairMove)
         chartRef.current.remove()
         chartRef.current = null
       }
     }
-  }, [data, chartType])
+  }, [data, chartType, handleCrosshairMove])
+
+  const displayPrice = hoverInfo ? hoverInfo.price : latestPrice
+  const displayTime = hoverInfo ? hoverInfo.time : latestTime
 
   return (
     <div className="space-y-3">
@@ -170,7 +230,19 @@ export function StockChart({ ticker }: StockChartProps) {
       {isLoading ? (
         <Skeleton className="w-full h-[300px] md:h-[400px]" />
       ) : (
-        <div ref={chartContainerRef} className="w-full h-[300px] md:h-[400px]" />
+        <div className="relative">
+          {displayPrice != null && (
+            <div className="absolute top-2 left-2 z-10 pointer-events-none">
+              <span className="text-sm font-semibold text-foreground">
+                {formatDollars(displayPrice)}
+              </span>
+              <span className="text-xs text-muted-foreground ml-2">
+                {displayTime}
+              </span>
+            </div>
+          )}
+          <div ref={chartContainerRef} className="w-full h-[300px] md:h-[400px]" />
+        </div>
       )}
     </div>
   )

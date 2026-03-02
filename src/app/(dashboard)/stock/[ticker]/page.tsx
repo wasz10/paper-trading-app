@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StockChart } from '@/components/market/stock-chart'
+import { BuyModal } from '@/components/trade/buy-modal'
+import { SellModal } from '@/components/trade/sell-modal'
+import { usePortfolioStore } from '@/stores/portfolio-store'
 import { ArrowLeft } from 'lucide-react'
 import { formatDollars, formatPercent } from '@/lib/utils'
 import type { StockQuote } from '@/types'
@@ -17,8 +19,16 @@ export default function StockDetailPage() {
   const ticker = (params.ticker as string).toUpperCase()
   const [quote, setQuote] = useState<StockQuote | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [buyOpen, setBuyOpen] = useState(false)
+  const [sellOpen, setSellOpen] = useState(false)
 
-  useEffect(() => {
+  const { portfolio, fetchPortfolio } = usePortfolioStore()
+
+  const cashBalance = portfolio?.cashBalance ?? 0
+  const holding = portfolio?.holdings.find((h) => h.ticker === ticker)
+  const sharesOwned = holding?.shares ?? 0
+
+  const fetchQuote = useCallback(() => {
     fetch(`/api/market/quote/${ticker}`)
       .then((res) => res.json())
       .then((json) => {
@@ -27,6 +37,19 @@ export default function StockDetailPage() {
       })
       .catch(() => setIsLoading(false))
   }, [ticker])
+
+  useEffect(() => {
+    fetchQuote()
+  }, [fetchQuote])
+
+  useEffect(() => {
+    if (!portfolio) fetchPortfolio()
+  }, [portfolio, fetchPortfolio])
+
+  function handleTradeSuccess() {
+    fetchQuote()
+    fetchPortfolio()
+  }
 
   if (isLoading) {
     return (
@@ -75,11 +98,42 @@ export default function StockDetailPage() {
 
       <StockChart ticker={ticker} />
 
-      <Link href={`/dashboard`} className="block">
-        <Button className="w-full md:w-auto" size="lg">
+      <div className="flex gap-3">
+        <Button className="flex-1 md:flex-none" size="lg" onClick={() => setBuyOpen(true)}>
           Buy {ticker}
         </Button>
-      </Link>
+        {sharesOwned > 0 && (
+          <Button
+            className="flex-1 md:flex-none"
+            size="lg"
+            variant="destructive"
+            onClick={() => setSellOpen(true)}
+          >
+            Sell {ticker}
+          </Button>
+        )}
+      </div>
+
+      {quote && (
+        <>
+          <BuyModal
+            ticker={ticker}
+            price={quote.price}
+            cashBalance={cashBalance}
+            open={buyOpen}
+            onOpenChange={setBuyOpen}
+            onSuccess={handleTradeSuccess}
+          />
+          <SellModal
+            ticker={ticker}
+            price={quote.price}
+            sharesOwned={sharesOwned}
+            open={sellOpen}
+            onOpenChange={setSellOpen}
+            onSuccess={handleTradeSuccess}
+          />
+        </>
+      )}
     </div>
   )
 }
