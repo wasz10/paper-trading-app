@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-03-02 (Deploy fixes, 1D chart full trading day, allocation chart hover fix)
+> Last updated: 2026-03-02 (1D chart rightOffset fix for LWC v4, manual Vercel deploy)
 
 ---
 
@@ -372,6 +372,27 @@ Continuation session: verified earlier commits were pushed, fixed Vercel auto-de
 
 ---
 
+### 1D Chart Empty Space Fix — LWC v4 rightOffset (commit a042e81, 2026-03-02)
+Continuation session: diagnosed why `setVisibleRange` was failing to show empty space after the last data point, replaced with the LWC v4-supported `rightOffset` approach.
+
+#### Root Cause: LWC v4 setVisibleRange Limitation
+- Discovered that Lightweight Charts v4's `setVisibleRange` cannot extrapolate beyond existing data points — it silently clamps to the last data point
+- This is why the 1D chart always snapped back to the current time instead of showing empty space extending to 8 PM ET
+- The previous rightOffset implementation (commit 2f077a0) was combined with `setVisibleRange`, which overrode the offset
+
+#### Fix: rightOffset + fitContent (commit a042e81)
+- `src/components/market/stock-chart.tsx`: Replaced `setVisibleRange` with `rightOffset` (number of empty bars calculated from remaining trading hours) + `fitContent()`
+- `rightOffset` is the LWC-supported way to show empty space after the last data point
+- The chart now correctly shows empty space extending to ~8 PM ET
+- Removed unused `dayStartUnix` variable (only `dayEndUnix` needed for rightOffset calculation)
+
+#### Deployment
+- Deployed via manual `npx vercel --prod` — confirmed working on production
+- Build: 29 routes, 0 errors
+- Lint: 0 warnings
+
+---
+
 ## In Progress
 Nothing currently in progress.
 
@@ -415,7 +436,7 @@ Nothing currently in progress.
 - Code review fixes (commit 8f3808e) are deployed to production. All 14 identified issues resolved.
 - Code review fixes (commit 72d93fc) deployed. 9 issues fixed: ET timezone for charts, weekend/holiday 1D blank chart fix, FP rounding guards in modals, stale fetch prevention, timestamp dedup, button type safety.
 - Code review fixes (commit 96d2c63) deployed. 6 fixes: sanitize bare dot input, sell $1 minimum proceeds, cents-math FP rounding, formatShares in handleSellAll, removed dead activeField ref, safer handleClose ordering.
-- 1D chart rightOffset (commit 2f077a0): x-axis now extends to 8 PM ET even when data ends earlier; `timeVisible: true` fixes intraday axis labels.
+- 1D chart rightOffset (commit 2f077a0, updated a042e81): x-axis extends to 8 PM ET via `rightOffset` + `fitContent()`. Original `setVisibleRange` approach silently clamped to last data point (LWC v4 limitation). `timeVisible: true` fixes intraday axis labels.
 - Allocation chart hover (commit 1f8b5e5): removed Tooltip component, center label dynamically shows hovered segment details.
 - **Vercel auto-deploy is broken** — Git integration not triggering on push. Workaround: `NODE_TLS_REJECT_UNAUTHORIZED=0 npx vercel --prod` for manual deployment through corporate proxy.
 
@@ -487,7 +508,7 @@ Nothing currently in progress.
 | `src/components/trade/buy-modal.tsx` | modified | **c6517b6**: Bidirectional sync rewrite — two always-visible fields (dollars top + shares bottom), sanitize() helper, ArrowUpDown indicator, Max button, summary line; **96d2c63**: sanitize bare dot→"0.", cents-math FP rounding, removed dead activeField ref, safer handleClose ordering |
 | `src/components/trade/sell-modal.tsx` | modified | **c6517b6**: Bidirectional sync rewrite — two always-visible fields (shares top + dollars bottom), sanitize() helper, ArrowUpDown indicator, Sell All button, summary line; **96d2c63**: sanitize bare dot→"0.", $1 min proceeds check, cents-math FP rounding, formatShares in handleSellAll, removed dead activeField ref, safer handleClose ordering |
 | `src/lib/market/yahoo.ts` | modified | **72d93fc**: 5-day lookback for 1D (weekend/holiday fix), deduplicate + sort chart timestamps |
-| `src/components/market/stock-chart.tsx` | modified | **2f077a0**: rightOffset for 1D chart (extends x-axis to 8 PM ET), `timeVisible: true` for intraday x-axis labels |
+| `src/components/market/stock-chart.tsx` | modified | **2f077a0**: rightOffset for 1D chart (extends x-axis to 8 PM ET), `timeVisible: true` for intraday x-axis labels; **a042e81**: replaced `setVisibleRange` with `rightOffset` + `fitContent()` (LWC v4 limitation fix), removed unused `dayStartUnix` |
 | `src/components/portfolio/allocation-chart.tsx` | modified | **1f8b5e5**: Removed Tooltip, added hoveredIndex state, center label shows hovered segment details dynamically |
 
 ---
