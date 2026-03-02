@@ -126,6 +126,8 @@ export function StockChart({ ticker }: StockChartProps) {
       const borderColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
       const textColor = isDark ? '#9ca3af' : '#6b7280'
 
+      const isIntraday = INTRADAY_RANGES.has(rangeRef.current)
+
       const chart = createChart(chartContainerRef.current, {
         layout: {
           background: { type: ColorType.Solid, color: 'transparent' },
@@ -155,7 +157,9 @@ export function StockChart({ ticker }: StockChartProps) {
         height: window.innerWidth < 768 ? 300 : 400,
         timeScale: {
           borderColor,
-          ...(INTRADAY_RANGES.has(rangeRef.current) && {
+          timeVisible: isIntraday,
+          secondsVisible: false,
+          ...(isIntraday && {
             tickMarkFormatter: (time: number) => {
               const date = new Date(time * 1000)
               return date.toLocaleTimeString('en-US', {
@@ -211,26 +215,35 @@ export function StockChart({ ticker }: StockChartProps) {
         series.setData(chartData.map((d) => ({ time: d.time, value: d.value })))
       }
 
-      // For 1D, set visible range to full trading day (pre-market to after-hours)
+      // For 1D, show full trading day (4 AM – 8 PM ET) with empty space for future hours
       if (rangeRef.current === '1D' && data.length > 0) {
         const lastTs = data[data.length - 1].time as number
         const lastDate = new Date(lastTs * 1000)
         const etOffsetHours = getETOffset(lastDate)
 
-        // Use explicit UTC arithmetic to avoid setUTCHours overflow (24+ hours)
         const utcMidnight = Date.UTC(
           lastDate.getUTCFullYear(),
           lastDate.getUTCMonth(),
           lastDate.getUTCDate()
         )
-        // 4:00 AM ET → UTC: add (4 - etOffset) hours
-        const dayStartMs = utcMidnight + (4 - etOffsetHours) * 3600_000
-        // 8:00 PM ET → UTC: add (20 - etOffset) hours
-        const dayEndMs = utcMidnight + (20 - etOffsetHours) * 3600_000
+        const dayStartUnix = Math.floor((utcMidnight + (4 - etOffsetHours) * 3600_000) / 1000)
+        const dayEndUnix = Math.floor((utcMidnight + (20 - etOffsetHours) * 3600_000) / 1000)
+
+        // Estimate bar interval from data (default 5 min if insufficient data)
+        const barInterval = data.length >= 2
+          ? Math.abs((data[1].time as number) - (data[0].time as number)) || 300
+          : 300
+
+        // Add empty space on the right for remaining hours in the trading day
+        const remainingSeconds = dayEndUnix - lastTs
+        if (remainingSeconds > 0) {
+          const rightOffset = Math.ceil(remainingSeconds / barInterval)
+          chart.timeScale().applyOptions({ rightOffset })
+        }
 
         chart.timeScale().setVisibleRange({
-          from: Math.floor(dayStartMs / 1000) as Time,
-          to: Math.floor(dayEndMs / 1000) as Time,
+          from: dayStartUnix as Time,
+          to: dayEndUnix as Time,
         })
       } else {
         chart.timeScale().fitContent()
