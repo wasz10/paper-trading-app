@@ -215,7 +215,9 @@ export function StockChart({ ticker }: StockChartProps) {
         series.setData(chartData.map((d) => ({ time: d.time, value: d.value })))
       }
 
-      // For 1D, show full trading day (4 AM – 8 PM ET) with empty space for future hours
+      // For 1D, show full trading day with empty space for future hours.
+      // Note: setVisibleRange cannot extrapolate beyond data points in LWC v4,
+      // so we use rightOffset (in bars) to create empty space, then fitContent.
       if (rangeRef.current === '1D' && data.length > 0) {
         const lastTs = data[data.length - 1].time as number
         const lastDate = new Date(lastTs * 1000)
@@ -226,7 +228,7 @@ export function StockChart({ ticker }: StockChartProps) {
           lastDate.getUTCMonth(),
           lastDate.getUTCDate()
         )
-        const dayStartUnix = Math.floor((utcMidnight + (4 - etOffsetHours) * 3600_000) / 1000)
+        // 8:00 PM ET in unix seconds
         const dayEndUnix = Math.floor((utcMidnight + (20 - etOffsetHours) * 3600_000) / 1000)
 
         // Estimate bar interval from data (default 5 min if insufficient data)
@@ -234,17 +236,11 @@ export function StockChart({ ticker }: StockChartProps) {
           ? Math.abs((data[1].time as number) - (data[0].time as number)) || 300
           : 300
 
-        // Add empty space on the right for remaining hours in the trading day
-        const remainingSeconds = dayEndUnix - lastTs
-        if (remainingSeconds > 0) {
-          const rightOffset = Math.ceil(remainingSeconds / barInterval)
-          chart.timeScale().applyOptions({ rightOffset })
-        }
-
-        chart.timeScale().setVisibleRange({
-          from: dayStartUnix as Time,
-          to: dayEndUnix as Time,
-        })
+        // rightOffset = number of empty bars to show after last data point
+        const remainingSeconds = Math.max(0, dayEndUnix - lastTs)
+        const rightOffset = Math.ceil(remainingSeconds / barInterval)
+        chart.timeScale().applyOptions({ rightOffset })
+        chart.timeScale().fitContent()
       } else {
         chart.timeScale().fitContent()
       }
