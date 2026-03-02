@@ -6,7 +6,6 @@ import type { LeaderboardEntry } from '@/types'
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[]
-  currentUserId?: string
   isLoading?: boolean
 }
 
@@ -24,7 +23,7 @@ function LoadingSkeleton() {
   )
 }
 
-export function LeaderboardTable({ entries, currentUserId, isLoading }: LeaderboardTableProps) {
+export function LeaderboardTable({ entries, isLoading }: LeaderboardTableProps) {
   if (isLoading) {
     return <LoadingSkeleton />
   }
@@ -49,10 +48,10 @@ export function LeaderboardTable({ entries, currentUserId, isLoading }: Leaderbo
       {/* Rows */}
       {entries.map((entry, index) => (
         <LeaderboardRow
-          key={entry.user_id}
+          key={index}
           entry={entry}
           rank={index + 1}
-          isCurrentUser={entry.user_id === currentUserId}
+          isCurrentUser={entry.is_current_user}
         />
       ))}
     </div>

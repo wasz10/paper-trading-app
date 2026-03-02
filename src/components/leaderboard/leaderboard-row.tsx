@@ -44,7 +44,7 @@ export function LeaderboardRow({ entry, rank, isCurrentUser }: LeaderboardRowPro
             'text-sm font-medium truncate',
             isCurrentUser && 'text-primary'
           )}>
-            {entry.display_name ?? `Trader #${entry.user_id.slice(-4).toUpperCase()}`}
+            {entry.display_name}
           </span>
           {entry.is_subscriber && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">

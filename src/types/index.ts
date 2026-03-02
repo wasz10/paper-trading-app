@@ -72,12 +72,10 @@ export interface DailyReward {
 
 // ── Leaderboard Entry ────────────────────────────────────────────────
 export interface LeaderboardEntry {
-  user_id: string
-  display_name: string | null
+  display_name: string
   total_return_pct: number
   is_subscriber: boolean
-  show_display_name: boolean
-  updated_at: string
+  is_current_user: boolean
 }
 
 // ── Token Transaction ────────────────────────────────────────────────

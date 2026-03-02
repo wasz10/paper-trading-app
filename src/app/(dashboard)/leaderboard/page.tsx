@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LeaderboardTable } from '@/components/leaderboard/leaderboard-table'
 import { UserRankCard } from '@/components/leaderboard/user-rank-card'
-import { createBrowserClient } from '@supabase/ssr'
 import type { LeaderboardEntry } from '@/types'
 
 type Period = 'daily' | 'weekly' | 'all-time'
@@ -14,17 +13,6 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [period, setPeriod] = useState<Period>('all-time')
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>()
-
-  useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentUserId(data.user?.id)
-    })
-  }, [])
 
   const fetchLeaderboard = useCallback(async (p: Period) => {
     setIsLoading(true)
@@ -45,12 +33,9 @@ export default function LeaderboardPage() {
     fetchLeaderboard(period)
   }, [period, fetchLeaderboard])
 
-  const currentUserEntry = currentUserId
-    ? entries.find((e) => e.user_id === currentUserId) ?? null
-    : null
-
+  const currentUserEntry = entries.find((e) => e.is_current_user) ?? null
   const currentUserRank = currentUserEntry
-    ? entries.findIndex((e) => e.user_id === currentUserId) + 1
+    ? entries.findIndex((e) => e.is_current_user) + 1
     : null
 
   return (
@@ -88,7 +73,6 @@ export default function LeaderboardPage() {
         <CardContent>
           <LeaderboardTable
             entries={entries}
-            currentUserId={currentUserId}
             isLoading={isLoading}
           />
         </CardContent>
