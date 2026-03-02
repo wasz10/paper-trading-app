@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getQuote } from '@/lib/market/yahoo'
 import { getCached, setCache, CACHE_TTL } from '@/lib/market/cache'
+import { checkRateLimit } from '@/lib/rate-limit'
 import {
   calculateReturnPercent,
   calculatePeriodReturnPercent,
@@ -25,6 +26,18 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Rate limit: 10 requests per minute per user
+    const { allowed, retryAfterMs } = checkRateLimit(user.id, 10, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) },
+        }
+      )
     }
 
     // Fetch all users
