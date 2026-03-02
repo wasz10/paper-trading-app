@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTradeStore } from '@/stores/trade-store'
 import { usePortfolioStore } from '@/stores/portfolio-store'
-import { cn, formatCurrency, formatDollars, formatShares } from '@/lib/utils'
-import { Loader2, CheckCircle2 } from 'lucide-react'
+import { formatCurrency, formatDollars, formatShares } from '@/lib/utils'
+import { Loader2, CheckCircle2, ArrowUpDown } from 'lucide-react'
 import type { Trade } from '@/types'
 
 interface SellModalProps {
@@ -20,32 +20,64 @@ interface SellModalProps {
   onSuccess?: () => void
 }
 
+function sanitize(value: string, maxDecimals: number): string | null {
+  const v = value.replace(/[^0-9.]/g, '')
+  const parts = v.split('.')
+  if (parts.length > 2) return null
+  if (parts[1] && parts[1].length > maxDecimals) return null
+  return v
+}
+
 export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSuccess }: SellModalProps) {
-  const [mode, setMode] = useState<'shares' | 'dollars'>('shares')
-  const [input, setInput] = useState('')
+  const [shares, setShares] = useState('')
+  const [dollars, setDollars] = useState('')
   const [completedTrade, setCompletedTrade] = useState<Trade | null>(null)
+  const activeField = useRef<'shares' | 'dollars' | null>(null)
   const { executeSell, isExecuting } = useTradeStore()
   const { fetchPortfolio } = usePortfolioStore()
 
-  // Compute sharesToSell regardless of mode (needed for API call)
-  const sharesToSell = mode === 'shares'
-    ? (parseFloat(input) || 0)
-    : price > 0
-      ? Math.floor(((parseFloat(input) || 0) / price) * 1e6) / 1e6
-      : 0
+  const sharesToSell = parseFloat(shares) || 0
+  const dollarAmount = parseFloat(dollars) || 0
 
-  const dollarInput = mode === 'dollars' ? (parseFloat(input) || 0) : 0
-  const estimatedValue = mode === 'shares' ? sharesToSell * price : dollarInput
-
-  const validationError = input
-    ? mode === 'dollars' && dollarInput <= 0
-      ? 'Enter a valid amount'
-      : sharesToSell <= 0
-        ? 'Enter a valid amount'
-        : sharesToSell > sharesOwned
-          ? `You only own ${formatShares(sharesOwned)} shares`
-          : null
+  const validationError = (shares || dollars)
+    ? sharesToSell <= 0
+      ? 'Enter a valid number of shares'
+      : sharesToSell > sharesOwned
+        ? `You only own ${formatShares(sharesOwned)} shares`
+        : null
     : null
+
+  function handleSharesChange(value: string) {
+    const v = sanitize(value, 6)
+    if (v === null) return
+    setShares(v)
+    // Sync dollars from shares
+    const s = parseFloat(v) || 0
+    if (s > 0) {
+      setDollars((s * price).toFixed(2))
+    } else {
+      setDollars('')
+    }
+  }
+
+  function handleDollarsChange(value: string) {
+    const v = sanitize(value, 2)
+    if (v === null) return
+    setDollars(v)
+    // Sync shares from dollars
+    const d = parseFloat(v) || 0
+    if (price > 0 && d > 0) {
+      const s = Math.floor((d / price) * 1e6) / 1e6
+      setShares(formatShares(s))
+    } else {
+      setShares('')
+    }
+  }
+
+  function handleSellAll() {
+    setShares(sharesOwned.toString())
+    setDollars((Math.floor(sharesOwned * price * 100) / 100).toFixed(2))
+  }
 
   async function handleSell() {
     if (validationError || sharesToSell <= 0) return
@@ -56,31 +88,19 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
         await fetchPortfolio()
       }
     } catch {
-      // trade store handles errors via throw
+      // trade store handles errors
     }
   }
 
   function handleClose() {
     if (completedTrade) onSuccess?.()
-    setInput('')
-    setMode('shares')
+    setShares('')
+    setDollars('')
     setCompletedTrade(null)
     onOpenChange(false)
   }
 
-  function handleMax() {
-    if (mode === 'shares') {
-      setInput(sharesOwned.toString())
-    } else {
-      // Floor to avoid rounding up past what shares are worth
-      setInput((Math.floor(sharesOwned * price * 100) / 100).toFixed(2))
-    }
-  }
-
-  // Should we show the estimate line?
-  const showEstimate = mode === 'shares'
-    ? sharesToSell > 0 && !validationError
-    : dollarInput > 0 && !validationError
+  const showSummary = sharesToSell > 0 && dollarAmount > 0 && !validationError
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -127,74 +147,63 @@ export function SellModal({ ticker, price, sharesOwned, open, onOpenChange, onSu
               <span>{formatShares(sharesOwned)} ({formatDollars(sharesOwned * price)})</span>
             </div>
 
-            {/* Mode toggle */}
-            <div className="flex rounded-lg border p-0.5">
-              <button
-                type="button"
-                className={cn(
-                  "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  mode === 'shares' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => { setMode('shares'); setInput('') }}
-              >
-                Shares
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  mode === 'dollars' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => { setMode('dollars'); setInput('') }}
-              >
-                Dollars
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="sell-input" className="text-sm font-medium">
-                {mode === 'shares' ? 'Shares to Sell' : 'Dollar Amount'}
+            {/* Shares input */}
+            <div className="space-y-1.5">
+              <label htmlFor="sell-shares" className="text-sm font-medium">
+                Shares to Sell
               </label>
               <div className="flex gap-2">
-                <div className="relative flex-1">
-                  {mode === 'dollars' && (
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                  )}
-                  <Input
-                    id="sell-input"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder={mode === 'shares' ? '0' : '0.00'}
-                    value={input}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/[^0-9.]/g, '')
-                      const parts = v.split('.')
-                      if (parts.length > 2) return
-                      const maxDecimals = mode === 'shares' ? 6 : 2
-                      if (parts[1] && parts[1].length > maxDecimals) return
-                      setInput(v)
-                    }}
-                    className={mode === 'dollars' ? 'pl-7' : undefined}
-                    autoFocus
-                  />
-                </div>
+                <Input
+                  id="sell-shares"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={shares}
+                  onFocus={() => { activeField.current = 'shares' }}
+                  onChange={(e) => handleSharesChange(e.target.value)}
+                  className="flex-1"
+                  autoFocus
+                />
                 <Button
                   variant="outline"
                   size="sm"
                   className="h-9 px-3"
-                  onClick={handleMax}
+                  onClick={handleSellAll}
                 >
-                  Max
+                  Sell All
                 </Button>
               </div>
             </div>
 
-            {showEstimate && (
+            {/* Sync indicator */}
+            <div className="flex justify-center">
+              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            </div>
+
+            {/* Dollar Amount input */}
+            <div className="space-y-1.5">
+              <label htmlFor="sell-dollars" className="text-sm font-medium">
+                Dollar Amount
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                <Input
+                  id="sell-dollars"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={dollars}
+                  onFocus={() => { activeField.current = 'dollars' }}
+                  onChange={(e) => handleDollarsChange(e.target.value)}
+                  className="pl-7"
+                />
+              </div>
+            </div>
+
+            {/* Summary line */}
+            {showSummary && (
               <p className="text-sm text-muted-foreground">
-                {mode === 'shares'
-                  ? `≈ ${formatDollars(estimatedValue)}`
-                  : `≈ ${formatShares(sharesToSell)} shares`
-                }
+                Selling {formatShares(sharesToSell)} shares for {formatDollars(dollarAmount)}
               </p>
             )}
 

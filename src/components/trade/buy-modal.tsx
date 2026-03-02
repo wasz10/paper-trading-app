@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTradeStore } from '@/stores/trade-store'
 import { usePortfolioStore } from '@/stores/portfolio-store'
-import { cn, formatCurrency, formatDollars, formatShares } from '@/lib/utils'
-import { Loader2, CheckCircle2 } from 'lucide-react'
+import { formatCurrency, formatDollars, formatShares } from '@/lib/utils'
+import { Loader2, CheckCircle2, ArrowUpDown } from 'lucide-react'
 import type { Trade } from '@/types'
 
 interface BuyModalProps {
@@ -20,35 +20,72 @@ interface BuyModalProps {
   onSuccess?: () => void
 }
 
+function sanitize(value: string, maxDecimals: number): string | null {
+  const v = value.replace(/[^0-9.]/g, '')
+  const parts = v.split('.')
+  if (parts.length > 2) return null
+  if (parts[1] && parts[1].length > maxDecimals) return null
+  return v
+}
+
 export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuccess }: BuyModalProps) {
-  const [mode, setMode] = useState<'dollars' | 'shares'>('dollars')
-  const [amount, setAmount] = useState('')
+  const [dollars, setDollars] = useState('')
+  const [shares, setShares] = useState('')
   const [completedTrade, setCompletedTrade] = useState<Trade | null>(null)
+  const activeField = useRef<'dollars' | 'shares' | null>(null)
   const { executeBuy, isExecuting } = useTradeStore()
   const { fetchPortfolio } = usePortfolioStore()
 
-  // Dollars mode calculations
-  const dollarAmount = mode === 'dollars' ? (parseFloat(amount) || 0) : 0
-  const sharesInput = mode === 'shares' ? (parseFloat(amount) || 0) : 0
+  const dollarAmount = parseFloat(dollars) || 0
+  const sharesAmount = parseFloat(shares) || 0
+  const amountCents = Math.round(dollarAmount * 100)
 
-  // Compute amountCents regardless of mode (needed for API call and validation)
-  const amountCents = mode === 'dollars'
-    ? Math.round(dollarAmount * 100)
-    : Math.round(sharesInput * price * 100)
-
-  // Estimated display values
-  const estimatedShares = mode === 'dollars' && price > 0
-    ? Math.floor((dollarAmount / price) * 1e6) / 1e6
-    : 0
-  const estimatedCost = mode === 'shares' ? sharesInput * price : 0
-
-  const validationError = amount
+  const validationError = (dollars || shares)
     ? amountCents < 100
       ? 'Minimum trade is $1.00'
       : amountCents > cashBalance
         ? 'Insufficient funds'
         : null
     : null
+
+  function handleDollarsChange(value: string) {
+    const v = sanitize(value, 2)
+    if (v === null) return
+    setDollars(v)
+    // Sync shares from dollars
+    const d = parseFloat(v) || 0
+    if (price > 0 && d > 0) {
+      const s = Math.floor((d / price) * 1e6) / 1e6
+      setShares(formatShares(s))
+    } else {
+      setShares('')
+    }
+  }
+
+  function handleSharesChange(value: string) {
+    const v = sanitize(value, 6)
+    if (v === null) return
+    setShares(v)
+    // Sync dollars from shares
+    const s = parseFloat(v) || 0
+    if (s > 0) {
+      setDollars((s * price).toFixed(2))
+    } else {
+      setDollars('')
+    }
+  }
+
+  function handleMax() {
+    const maxDollars = (cashBalance / 100).toFixed(2)
+    setDollars(maxDollars)
+    if (price > 0) {
+      let maxShares = Math.floor((cashBalance / 100 / price) * 1e6) / 1e6
+      if (Math.round(maxShares * price * 100) > cashBalance) {
+        maxShares = Math.floor(((cashBalance - 1) / 100 / price) * 1e6) / 1e6
+      }
+      setShares(maxShares > 0 ? formatShares(maxShares) : '0')
+    }
+  }
 
   async function handleBuy() {
     if (validationError || amountCents < 100) return
@@ -59,36 +96,19 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
         await fetchPortfolio()
       }
     } catch {
-      // trade store handles errors via throw, toast shown by caller or store
+      // trade store handles errors
     }
   }
 
   function handleClose() {
     if (completedTrade) onSuccess?.()
-    setAmount('')
-    setMode('dollars')
+    setDollars('')
+    setShares('')
     setCompletedTrade(null)
     onOpenChange(false)
   }
 
-  function handleMax() {
-    if (mode === 'dollars') {
-      setAmount((cashBalance / 100).toFixed(2))
-    } else {
-      if (price <= 0) { setAmount('0'); return }
-      let maxShares = Math.floor((cashBalance / 100 / price) * 1e6) / 1e6
-      // Guard against FP rounding pushing cost above balance
-      if (Math.round(maxShares * price * 100) > cashBalance) {
-        maxShares = Math.floor(((cashBalance - 1) / 100 / price) * 1e6) / 1e6
-      }
-      setAmount(maxShares > 0 ? maxShares.toString() : '0')
-    }
-  }
-
-  // Should we show the estimate line?
-  const showEstimate = mode === 'dollars'
-    ? dollarAmount >= 1 && !validationError
-    : sharesInput > 0 && !validationError
+  const showSummary = dollarAmount >= 1 && sharesAmount > 0 && !validationError
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -135,54 +155,23 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
               <span>{formatCurrency(cashBalance)}</span>
             </div>
 
-            {/* Mode toggle */}
-            <div className="flex rounded-lg border p-0.5">
-              <button
-                type="button"
-                className={cn(
-                  "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  mode === 'dollars' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => { setMode('dollars'); setAmount('') }}
-              >
-                Dollars
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  mode === 'shares' ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => { setMode('shares'); setAmount('') }}
-              >
-                Shares
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="buy-amount" className="text-sm font-medium">
-                {mode === 'dollars' ? 'Dollar Amount' : 'Number of Shares'}
+            {/* Dollar Amount input */}
+            <div className="space-y-1.5">
+              <label htmlFor="buy-dollars" className="text-sm font-medium">
+                Dollar Amount
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  {mode === 'dollars' && (
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                  )}
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                   <Input
-                    id="buy-amount"
+                    id="buy-dollars"
                     type="text"
                     inputMode="decimal"
-                    placeholder={mode === 'dollars' ? '0.00' : '0'}
-                    value={amount}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/[^0-9.]/g, '')
-                      const parts = v.split('.')
-                      if (parts.length > 2) return
-                      const maxDecimals = mode === 'dollars' ? 2 : 6
-                      if (parts[1] && parts[1].length > maxDecimals) return
-                      setAmount(v)
-                    }}
-                    className={mode === 'dollars' ? 'pl-7' : undefined}
+                    placeholder="0.00"
+                    value={dollars}
+                    onFocus={() => { activeField.current = 'dollars' }}
+                    onChange={(e) => handleDollarsChange(e.target.value)}
+                    className="pl-7"
                     autoFocus
                   />
                 </div>
@@ -197,12 +186,31 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
               </div>
             </div>
 
-            {showEstimate && (
+            {/* Sync indicator */}
+            <div className="flex justify-center">
+              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            </div>
+
+            {/* Shares input */}
+            <div className="space-y-1.5">
+              <label htmlFor="buy-shares" className="text-sm font-medium">
+                Shares
+              </label>
+              <Input
+                id="buy-shares"
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={shares}
+                onFocus={() => { activeField.current = 'shares' }}
+                onChange={(e) => handleSharesChange(e.target.value)}
+              />
+            </div>
+
+            {/* Summary line */}
+            {showSummary && (
               <p className="text-sm text-muted-foreground">
-                {mode === 'dollars'
-                  ? `≈ ${formatShares(estimatedShares)} shares`
-                  : `≈ ${formatDollars(estimatedCost)}`
-                }
+                Buying {formatShares(sharesAmount)} shares for {formatDollars(dollarAmount)}
               </p>
             )}
 

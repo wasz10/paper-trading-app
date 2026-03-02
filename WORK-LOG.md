@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-03-02 (Stock detail page fixes — chart tooltip + buy/sell modals)
+> Last updated: 2026-03-02 (Code review fixes — ET timezone, weekend chart, FP rounding, stale fetch guard)
 
 ---
 
@@ -219,6 +219,104 @@ Delivered via 5 parallel agents (trade-history, portfolio-chart, tutorial, demo,
 
 ---
 
+### Feature Sprint — v2 Features Round 3 (4 parallel agents, 2026-03-02)
+Delivered via 4 parallel agents. Committed as `feat: curated watchlists, stock stats, enhanced allocation chart, leaderboard periods`. Pushed to GitHub, Vercel deploy triggered.
+
+#### Curated Watchlists on Explore Page
+- `src/lib/market/watchlists.ts`: Added `CuratedWatchlist` interface + `CURATED_WATCHLISTS` array
+- `src/components/market/curated-watchlists.tsx`: Horizontal scroll sections with batched quote fetching
+- `src/app/(dashboard)/explore/page.tsx`: Renders CuratedWatchlists above CategoryChips
+- 3 lists: "Trending Today", "Beginner Friendly", "Tech Giants" with 6 tickers each
+
+#### Stock Detail Key Stats
+- `src/types/index.ts`: Extended `StockQuote` with 8 optional fields (marketCap, peRatio, 52-week high/low, volume, avgVolume, dividendYield, beta)
+- `src/lib/market/yahoo.ts`: `getQuote()` extracts extra fields from yahoo-finance2
+- `src/components/market/stock-stats.tsx`: Responsive 2x4 grid with `formatLargeNumber`/`formatVolume` helpers
+- `src/app/(dashboard)/stock/[ticker]/page.tsx`: Renders StockStats below chart
+
+#### Enhanced Allocation Chart
+- `src/components/portfolio/allocation-chart.tsx`: Full rewrite as drop-in replacement
+- Center donut text showing total portfolio value
+- Enhanced grid legend (2 cols mobile, 3 cols desktop) with percentages
+- Distinct cash color (slate-400), "Other" bucket for holdings <3% when >5 holdings
+- Theme-aware chart colors via CSS variables
+
+#### Leaderboard Period Filtering
+- `src/lib/leaderboard/calculations.ts`: Added `calculatePeriodReturnPercent()` and `getPeriodSnapshotDate()`
+- `src/app/api/leaderboard/route.ts`: Queries `portfolio_snapshots` for period-based returns via admin client
+- Daily = 1-day lookback, Weekly = 7-day lookback, All-time = existing calculation
+- Falls back to $10k starting balance when no snapshot exists
+
+#### Build Stats
+- `npm run build`: 29 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings
+
+---
+
+### Stock Detail Page Improvements (2 parallel agents, 2026-03-02)
+Delivered via 2 parallel agents. 3 commits pushed to GitHub, Vercel deploy triggered.
+
+#### Full Trading Day 1D Chart
+- `src/lib/market/yahoo.ts`: Added `includePrePost: true` to `getChartData` for 1D range — pre-market and after-hours data now included
+- `src/components/market/stock-chart.tsx`: Added `getETOffset()` helper for EDT/EST detection (2nd Sunday March - 1st Sunday November)
+- 1D chart x-axis now spans 4:00 AM ET - 8:00 PM ET via `chart.timeScale().setVisibleRange()` instead of `fitContent()`
+- Non-1D ranges still use `fitContent()` as before
+
+#### Date in Chart Tooltips + X-Axis Labels
+- `src/components/market/stock-chart.tsx`: Updated `formatChartTime` — intraday now shows "Mar 2, 2:01 PM" (was just "2:01 PM"), daily+ unchanged ("Feb 15, 2026")
+- Added `tickMarkFormatter` to timeScale options — 1D/1W show readable times ("10:00 AM", "12:00 PM"), daily+ uses Lightweight Charts defaults
+- Fixes the issue where 1D x-axis showed repeating "2" instead of proper time labels
+
+#### Buy/Sell Dual-Input Toggle (Dollars or Shares)
+- `src/components/trade/buy-modal.tsx`: Added `mode` state ('dollars' | 'shares') with inline tab toggle
+  - Dollars mode: existing behavior (dollar input, shows estimated shares)
+  - Shares mode: share input (up to 6 decimals), shows estimated cost
+  - Max button: dollars mode fills cash balance, shares mode computes max affordable fractional shares
+  - Both modes validate min $1 and insufficient funds, call `executeBuy(ticker, amountCents)`
+- `src/components/trade/sell-modal.tsx`: Added `mode` state ('shares' | 'dollars') with inline tab toggle
+  - Shares mode: existing behavior (share input, shows estimated value)
+  - Dollars mode: dollar input, computes shares to sell
+  - Max button adapts per mode (shares owned or max dollar value)
+  - Both modes call `executeSell(ticker, sharesToSell)`
+- Added `cn` import to both files for toggle styling
+
+#### Commits
+1. `feat: buy/sell by shares or dollars with dual-input toggle` (e3ca1d7)
+2. `fix: include extended hours data in 1D chart` (cc734c4)
+3. `fix: full-day 1D chart range, date in tooltips, x-axis labels` (e84ad39)
+
+#### Build Stats
+- `npm run build`: 29 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings
+- Pushed to GitHub, Vercel deploy triggered
+
+---
+
+### Code Review Fixes (commit 72d93fc, 4 files changed, 51 insertions, 27 deletions)
+Automated code review via code-improver agent on the 4 files changed in the previous session (stock-chart.tsx, yahoo.ts, buy-modal.tsx, sell-modal.tsx). 9 issues found and fixed across critical, important, and suggestion categories.
+
+**Critical fixes:**
+- `src/components/market/stock-chart.tsx`: Intraday chart times now display in ET (`timeZone: 'America/New_York'`) instead of browser local timezone — tooltips and x-axis labels consistent for all users
+- `src/components/market/stock-chart.tsx`: `tickMarkFormatter` — replaced `undefined as unknown as string` unsafe cast with conditional spread that only attaches formatter for intraday ranges
+- `src/components/market/stock-chart.tsx`: Replaced `setUTCHours` overflow (24+ hours in EDT) with explicit `Date.UTC` arithmetic for 1D visible range calculation
+
+**Important fixes:**
+- `src/lib/market/yahoo.ts`: 1D chart now looks back 5 days instead of 1 — fixes blank chart on weekends and holidays
+- `src/components/trade/buy-modal.tsx`: Buy modal Max button in shares mode — added FP rounding guard to prevent computed cost exceeding cash balance by 1 cent
+- `src/components/trade/sell-modal.tsx`: Sell modal Max button in dollars mode — `Math.floor` prevents rounding up past what shares are worth
+- `src/components/market/stock-chart.tsx`: Added `active` flag to chart fetch effect to prevent stale state updates on rapid ticker/range changes
+
+**Suggestions fixed:**
+- `src/lib/market/yahoo.ts`: Deduplicate + sort chart timestamps (Yahoo can return dupes with `includePrePost`)
+- `src/components/trade/buy-modal.tsx` + `sell-modal.tsx`: Added `type="button"` to all modal toggle buttons to prevent accidental form submission
+
+#### Build Stats
+- `npm run build`: 29 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings
+- Pushed to GitHub, Vercel deploy triggered
+
+---
+
 ## In Progress
 Nothing currently in progress.
 
@@ -236,7 +334,7 @@ Nothing currently in progress.
 ## Known Issues / Context
 
 ### Architecture
-- **31 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status)
+- **29 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status)
 - **Layout**: Desktop = left sidebar (w-64) + header + main. Mobile = bottom nav (h-16) + header + full-width. Both share 5 nav items: Dashboard, Explore, Rewards, Leaderboard, Settings.
 - **Dashboard layout**: `src/app/(dashboard)/layout.tsx` is a server component that does auth check + profile fetch.
 - **State management**: Zustand stores for portfolio and trade state; server components fetch directly from Supabase.
@@ -260,6 +358,7 @@ Nothing currently in progress.
 - yahoo-finance2 occasionally returns zero prices -- the zero-price rejection in `yahoo.ts` handles this.
 - ResizeObserver in stock-chart.tsx was leaking -- fixed with proper cleanup in useEffect.
 - Code review fixes (commit 8f3808e) are deployed to production. All 14 identified issues resolved.
+- Code review fixes (commit 72d93fc) deployed. 9 issues fixed: ET timezone for charts, weekend/holiday 1D blank chart fix, FP rounding guards in modals, stale fetch prevention, timestamp dedup, button type safety.
 
 ### Database
 - **Supabase project**: ref `xteeugmsfirnqiphjjtg`, URL `https://xteeugmsfirnqiphjjtg.supabase.co`
@@ -314,4 +413,18 @@ Nothing currently in progress.
 | `src/components/market/stock-chart.tsx` | modified | Added crosshair tooltip overlay (subscribeCrosshairMove, formatChartTime) |
 | `src/components/trade/buy-modal.tsx` | modified | Success state, $ prefix, inline validation, Max button, onSuccess callback |
 | `src/components/trade/sell-modal.tsx` | modified | Success state, Sell All, validation, estimated value, destructive styling |
-| `src/app/(dashboard)/stock/[ticker]/page.tsx` | modified | Modal triggers, sell button, portfolio fetch, handleTradeSuccess |
+| `src/app/(dashboard)/stock/[ticker]/page.tsx` | modified | Modal triggers, sell button, portfolio fetch, handleTradeSuccess; renders StockStats |
+| `src/lib/market/watchlists.ts` | created | CuratedWatchlist interface + CURATED_WATCHLISTS array (3 lists, 6 tickers each) |
+| `src/components/market/curated-watchlists.tsx` | created | Horizontal scroll sections with batched quote fetching |
+| `src/app/(dashboard)/explore/page.tsx` | modified | Renders CuratedWatchlists above CategoryChips |
+| `src/types/index.ts` | modified | StockQuote extended with 8 optional fields (marketCap, peRatio, 52W, volume, etc.) |
+| `src/lib/market/yahoo.ts` | modified | getQuote() extracts extra fields from yahoo-finance2 |
+| `src/components/market/stock-stats.tsx` | created | Responsive 2x4 stats grid with formatLargeNumber/formatVolume helpers |
+| `src/components/portfolio/allocation-chart.tsx` | modified | Full rewrite: donut center text, enhanced legend, "Other" bucket, theme-aware colors |
+| `src/lib/leaderboard/calculations.ts` | modified | Added calculatePeriodReturnPercent() and getPeriodSnapshotDate() |
+| `src/app/api/leaderboard/route.ts` | modified | Queries portfolio_snapshots for period-based returns via admin client |
+| `src/lib/market/yahoo.ts` | modified | Added `includePrePost: true` for 1D range (extended hours data) |
+| `src/components/market/stock-chart.tsx` | modified | `getETOffset()` EDT/EST helper, full-day 1D range, `formatChartTime` date in tooltips, `tickMarkFormatter` x-axis labels; **72d93fc**: ET timezone fix, safe tickMarkFormatter, Date.UTC range calc, active flag for stale fetch |
+| `src/components/trade/buy-modal.tsx` | modified | Dual-input toggle (dollars/shares mode), max button per mode, `cn` import; **72d93fc**: FP rounding guard on max shares, `type="button"` on toggles |
+| `src/components/trade/sell-modal.tsx` | modified | Dual-input toggle (shares/dollars mode), max button per mode, `cn` import; **72d93fc**: `Math.floor` on max dollars, `type="button"` on toggles |
+| `src/lib/market/yahoo.ts` | modified | **72d93fc**: 5-day lookback for 1D (weekend/holiday fix), deduplicate + sort chart timestamps |
