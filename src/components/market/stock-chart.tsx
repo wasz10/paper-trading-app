@@ -10,10 +10,28 @@ import type { TimeRange, ChartType } from '@/types/market'
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '1Y', 'ALL']
 const INTRADAY_RANGES = new Set<TimeRange>(['1D', '1W'])
 
+/** Returns ET offset in hours (-4 for EDT, -5 for EST) */
+function getETOffset(date: Date): number {
+  const year = date.getUTCFullYear()
+  // 2nd Sunday of March (EDT starts at 2 AM EST = 7 AM UTC)
+  const mar1 = new Date(Date.UTC(year, 2, 1))
+  const marSecondSun = 8 + ((7 - mar1.getUTCDay()) % 7)
+  const edtStart = Date.UTC(year, 2, marSecondSun, 7, 0, 0)
+  // 1st Sunday of November (EDT ends at 2 AM EDT = 6 AM UTC)
+  const nov1 = new Date(Date.UTC(year, 10, 1))
+  const novFirstSun = 1 + ((7 - nov1.getUTCDay()) % 7)
+  const edtEnd = Date.UTC(year, 10, novFirstSun, 6, 0, 0)
+
+  const ts = date.getTime()
+  return ts >= edtStart && ts < edtEnd ? -4 : -5
+}
+
 function formatChartTime(time: string | number, range: TimeRange): string {
   if (INTRADAY_RANGES.has(range)) {
     const date = new Date((time as number) * 1000)
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    const datePart = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const timePart = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    return `${datePart}, ${timePart}`
   }
   const date = new Date(time as string)
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -129,7 +147,20 @@ export function StockChart({ ticker }: StockChartProps) {
         },
         width: chartContainerRef.current.clientWidth,
         height: window.innerWidth < 768 ? 300 : 400,
-        timeScale: { borderColor },
+        timeScale: {
+          borderColor,
+          tickMarkFormatter: (time: number) => {
+            if (rangeRef.current === '1D' || rangeRef.current === '1W') {
+              const date = new Date(time * 1000)
+              return date.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+              })
+            }
+            return undefined as unknown as string
+          },
+        },
         rightPriceScale: { borderColor },
       })
 
@@ -174,7 +205,27 @@ export function StockChart({ ticker }: StockChartProps) {
         series.setData(chartData.map((d) => ({ time: d.time, value: d.value })))
       }
 
-      chart.timeScale().fitContent()
+      // For 1D, set visible range to full trading day (pre-market to after-hours)
+      if (rangeRef.current === '1D' && data.length > 0) {
+        const lastTs = data[data.length - 1].time as number
+        const lastDate = new Date(lastTs * 1000)
+        const etOffsetHours = getETOffset(lastDate)
+
+        // 4:00 AM ET in UTC
+        const dayStart = new Date(lastDate)
+        dayStart.setUTCHours(4 - etOffsetHours, 0, 0, 0)
+
+        // 8:00 PM ET in UTC
+        const dayEnd = new Date(lastDate)
+        dayEnd.setUTCHours(20 - etOffsetHours, 0, 0, 0)
+
+        chart.timeScale().setVisibleRange({
+          from: Math.floor(dayStart.getTime() / 1000) as Time,
+          to: Math.floor(dayEnd.getTime() / 1000) as Time,
+        })
+      } else {
+        chart.timeScale().fitContent()
+      }
 
       chart.subscribeCrosshairMove(handleCrosshairMove)
 
