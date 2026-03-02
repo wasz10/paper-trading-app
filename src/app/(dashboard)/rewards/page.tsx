@@ -8,6 +8,7 @@ import { DailyRewardModal } from '@/components/rewards/daily-reward-modal'
 import { TokenBalance } from '@/components/rewards/token-balance'
 import { WeeklyChallengeList } from '@/components/rewards/weekly-challenge'
 import { useTutorialStep } from '@/hooks/useTutorialStep'
+import { useProfileStore } from '@/stores/profile-store'
 
 interface RewardStatus {
   currentStreak: number
@@ -21,6 +22,7 @@ export default function RewardsPage() {
   // Auto-complete "claim_reward" tutorial step when page is visited
   useTutorialStep('claim_reward')
 
+  const addTokens = useProfileStore((s) => s.addTokens)
   const [status, setStatus] = useState<RewardStatus | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showClaimModal, setShowClaimModal] = useState(false)
@@ -78,6 +80,7 @@ export default function RewardsPage() {
             currentStreak: newStreak,
             canClaim: false,
           })
+          addTokens(tokens)
         }}
       />
     </div>

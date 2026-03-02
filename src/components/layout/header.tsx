@@ -5,14 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Coins, LogOut } from 'lucide-react'
 import { signOut } from '@/lib/supabase/auth'
+import { useProfileStore } from '@/stores/profile-store'
 
-interface HeaderProps {
-  displayName?: string | null
-  tokenBalance?: number
-}
-
-export function Header({ displayName, tokenBalance = 0 }: HeaderProps) {
+export function Header() {
   const router = useRouter()
+  const displayName = useProfileStore((s) => s.displayName)
+  const tokenBalance = useProfileStore((s) => s.tokenBalance)
 
   async function handleLogout() {
     await signOut()

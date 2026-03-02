@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useProfileStore } from '@/stores/profile-store'
 
 interface UseTutorialStepResult {
   completed: boolean
@@ -12,6 +13,7 @@ export function useTutorialStep(stepId: string): UseTutorialStepResult {
   const [completed, setCompleted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tokensEarned, setTokensEarned] = useState(0)
+  const addTokens = useProfileStore((s) => s.addTokens)
   const calledRef = useRef(false)
 
   useEffect(() => {
@@ -28,8 +30,10 @@ export function useTutorialStep(stepId: string): UseTutorialStepResult {
 
         if (res.ok) {
           const json = await res.json()
+          const earned = json.data?.tokensEarned ?? 0
           setCompleted(true)
-          setTokensEarned(json.data?.tokensEarned ?? 0)
+          setTokensEarned(earned)
+          if (earned > 0) addTokens(earned)
         } else {
           // Step might already be completed — treat as completed
           const json = await res.json().catch(() => null)
@@ -45,7 +49,7 @@ export function useTutorialStep(stepId: string): UseTutorialStepResult {
     }
 
     completeStep()
-  }, [stepId])
+  }, [stepId, addTokens])
 
   return { completed, loading, tokensEarned }
 }
