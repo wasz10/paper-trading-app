@@ -99,6 +99,15 @@ export interface StockQuote {
   changePercent: number
   name: string
   timestamp: number // unix ms
+  // Key stats (optional — not all stocks have all fields)
+  marketCap?: number
+  peRatio?: number
+  fiftyTwoWeekHigh?: number
+  fiftyTwoWeekLow?: number
+  volume?: number
+  avgVolume?: number
+  dividendYield?: number
+  eps?: number
 }
 
 export interface ChartDataPoint {

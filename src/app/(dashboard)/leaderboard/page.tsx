@@ -58,7 +58,7 @@ export default function LeaderboardPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Leaderboard</h1>
         <p className="text-muted-foreground text-sm">
-          See how you stack up against other traders.
+          See how you stack up against other traders. Rankings update with live prices.
         </p>
       </div>
 

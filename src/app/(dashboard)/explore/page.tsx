@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { StockSearch } from '@/components/market/stock-search'
+import { CuratedWatchlists } from '@/components/market/curated-watchlists'
 import { CategoryChips } from '@/components/market/category-chips'
 import { WatchlistSection } from '@/components/market/watchlist-section'
 import { MarketHoursBanner } from '@/components/market/market-hours-banner'
@@ -24,6 +25,7 @@ export default function ExplorePage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Explore</h1>
       <StockSearch />
+      <CuratedWatchlists />
       <CategoryChips selected={selectedCategory} onSelect={setSelectedCategory} />
       <WatchlistSection tickers={tickers} />
       <MarketHoursBanner />

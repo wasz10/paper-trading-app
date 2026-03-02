@@ -51,3 +51,35 @@ export function rankEntries(
     .sort((a, b) => b.total_return_pct - a.total_return_pct)
     .slice(0, limit)
 }
+
+export type LeaderboardPeriod = 'daily' | 'weekly' | 'all-time'
+
+/**
+ * Get the snapshot date to use as the baseline for a given period.
+ * daily = 1 day ago, weekly = 7 days ago
+ */
+export function getPeriodSnapshotDate(period: LeaderboardPeriod): string | null {
+  if (period === 'all-time') return null
+
+  const date = new Date()
+  if (period === 'daily') {
+    date.setDate(date.getDate() - 1)
+  } else if (period === 'weekly') {
+    date.setDate(date.getDate() - 7)
+  }
+
+  return date.toISOString().split('T')[0] // YYYY-MM-DD
+}
+
+/**
+ * Calculate return percentage for a period given current value and baseline value.
+ * If no baseline snapshot exists, falls back to starting balance ($10k = 1_000_000 cents).
+ */
+export function calculatePeriodReturnPercent(
+  currentValueCents: number,
+  baselineValueCents: number | null
+): number {
+  const baseline = baselineValueCents ?? STARTING_BALANCE_CENTS
+  if (baseline === 0) return 0
+  return ((currentValueCents - baseline) / baseline) * 100
+}

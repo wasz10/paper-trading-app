@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StockChart } from '@/components/market/stock-chart'
+import { StockStats } from '@/components/market/stock-stats'
 import { BuyModal } from '@/components/trade/buy-modal'
 import { SellModal } from '@/components/trade/sell-modal'
 import { usePortfolioStore } from '@/stores/portfolio-store'
@@ -97,6 +98,8 @@ export default function StockDetailPage() {
       </div>
 
       <StockChart ticker={ticker} />
+
+      <StockStats quote={quote} />
 
       <div className="flex gap-3">
         <Button className="flex-1 md:flex-none" size="lg" onClick={() => setBuyOpen(true)}>

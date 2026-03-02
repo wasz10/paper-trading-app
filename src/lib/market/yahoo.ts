@@ -23,6 +23,14 @@ export async function getQuote(ticker: string): Promise<StockQuote> {
     changePercent,
     name: result.shortName ?? result.longName ?? ticker,
     timestamp: Date.now(),
+    marketCap: result.marketCap ?? undefined,
+    peRatio: result.trailingPE ?? undefined,
+    fiftyTwoWeekHigh: result.fiftyTwoWeekHigh ?? undefined,
+    fiftyTwoWeekLow: result.fiftyTwoWeekLow ?? undefined,
+    volume: result.regularMarketVolume ?? undefined,
+    avgVolume: result.averageDailyVolume3Month ?? undefined,
+    dividendYield: result.dividendYield ?? undefined,
+    eps: result.epsTrailingTwelveMonths ?? undefined,
   }
 }
 
