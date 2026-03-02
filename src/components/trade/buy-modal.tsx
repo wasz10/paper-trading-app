@@ -80,8 +80,9 @@ export function BuyModal({ ticker, price, cashBalance, open, onOpenChange, onSuc
     setDollars(maxDollars)
     if (price > 0) {
       let maxShares = Math.floor((cashBalance / 100 / price) * 1e6) / 1e6
-      if (Math.round(maxShares * price * 100) > cashBalance) {
-        maxShares = Math.floor(((cashBalance - 1) / 100 / price) * 1e6) / 1e6
+      // Step down one micro-share at a time until cost fits within balance
+      while (maxShares > 0 && Math.round(maxShares * price * 100) > cashBalance) {
+        maxShares = Math.floor((maxShares * 1e6 - 1)) / 1e6
       }
       setShares(maxShares > 0 ? formatShares(maxShares) : '0')
     }

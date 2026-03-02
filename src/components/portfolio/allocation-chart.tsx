@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Label } from 'recharts'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import type { HoldingWithQuote } from '@/types'
 
 const CHART_COLORS = [
@@ -104,7 +104,7 @@ export function AllocationChart({ holdings, cashBalance }: AllocationChartProps)
                 content={({ viewBox }) => {
                   if (!viewBox || !('cx' in viewBox)) return null
                   const { cx, cy } = viewBox as { cx: number; cy: number }
-                  const hovered = hoveredIndex !== null ? data[hoveredIndex] : null
+                  const hovered = hoveredIndex !== null && hoveredIndex < data.length ? data[hoveredIndex] : null
                   const label = hovered ? hovered.name : 'Total'
                   const value = hovered ? hovered.value : totalValue
                   const pct = hovered && totalValue > 0
@@ -159,7 +159,7 @@ export function AllocationChart({ holdings, cashBalance }: AllocationChartProps)
                 style={{ backgroundColor: item.color }}
               />
               <span className="truncate font-medium">{item.name}</span>
-              <span className={cn('ml-auto tabular-nums text-muted-foreground')}>{pct}%</span>
+              <span className="ml-auto tabular-nums text-muted-foreground">{pct}%</span>
             </div>
           )
         })}
