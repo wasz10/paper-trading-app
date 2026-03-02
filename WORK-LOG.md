@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-03-02 (1D chart rightOffset fix for LWC v4, manual Vercel deploy)
+> Last updated: 2026-03-02 (code-improver + code-cleanup: 3 fixes on allocation-chart, buy-modal; deployed)
 
 ---
 
@@ -544,3 +544,30 @@ Resumed from context break. Previous session had completed the bidirectional syn
 - `npm run lint`: 0 errors, 0 warnings
 - Committed as 96d2c63: `fix: modal code review — sanitize bare dot, sell minimum, FP rounding, dead ref`
 - Pushed to GitHub, Vercel auto-deploy triggered
+
+---
+
+### Code Review + Cleanup Fixes (commit 2d310aa, 2026-03-02)
+Ran code-improver and code-cleanup agents on 4 recently changed files (stock-chart.tsx, allocation-chart.tsx, buy-modal.tsx, sell-modal.tsx). code-improver found 16 items (3 actionable), code-cleanup found 1 fix. All 3 fixes applied.
+
+#### code-improver Findings
+- 16 items reviewed across 4 files, 3 actionable issues identified
+
+#### code-cleanup Findings
+- 1 fix: unused `cn` import in allocation-chart.tsx
+
+#### Fixes Applied
+
+**Bug fix:**
+- `src/components/portfolio/allocation-chart.tsx`: Added `hoveredIndex < data.length` bounds check to prevent stale `hoveredIndex` after portfolio data refresh (e.g., after a trade changes number of holdings). Initially attempted `useEffect` reset but lint rule `react-hooks/set-state-in-effect` blocked it — used render-time guard instead.
+
+**Precision fix:**
+- `src/components/trade/buy-modal.tsx`: Replaced fragile `-1 cent` heuristic in `handleMax` with a micro-share step-down while loop — repeatedly subtracts one micro-share (0.000001) until computed cost fits within cash balance. Proven correct vs. edge-case floating-point drift.
+
+**Cleanup fix:**
+- `src/components/portfolio/allocation-chart.tsx`: Removed unused `cn` import, replaced `cn('...')` call with plain string literal.
+
+#### Build & Deploy
+- `npm run build`: 29 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings
+- Deployed via `npx vercel --prod` — confirmed live at https://paper-trading-app-delta.vercel.app
