@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Label } from 'recharts'
+import { useMemo, useState } from 'react'
+import { PieChart, Pie, Cell, ResponsiveContainer, Label } from 'recharts'
 import { formatCurrency, cn } from '@/lib/utils'
 import type { HoldingWithQuote } from '@/types'
 
@@ -32,6 +32,8 @@ interface AllocationChartProps {
 }
 
 export function AllocationChart({ holdings, cashBalance }: AllocationChartProps) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+
   const { data, totalValue } = useMemo(() => {
     if (holdings.length === 0) return { data: [], totalValue: 0 }
 
@@ -88,48 +90,62 @@ export function AllocationChart({ holdings, cashBalance }: AllocationChartProps)
               dataKey="value"
               paddingAngle={2}
               label={false}
+              onMouseLeave={() => setHoveredIndex(null)}
             >
               {data.map((entry, index) => (
-                <Cell key={`${entry.name}-${index}`} fill={entry.color} />
+                <Cell
+                  key={`${entry.name}-${index}`}
+                  fill={entry.color}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  style={{ cursor: 'pointer' }}
+                />
               ))}
               <Label
                 content={({ viewBox }) => {
                   if (!viewBox || !('cx' in viewBox)) return null
                   const { cx, cy } = viewBox as { cx: number; cy: number }
+                  const hovered = hoveredIndex !== null ? data[hoveredIndex] : null
+                  const label = hovered ? hovered.name : 'Total'
+                  const value = hovered ? hovered.value : totalValue
+                  const pct = hovered && totalValue > 0
+                    ? ((hovered.value / totalValue) * 100).toFixed(1) + '%'
+                    : null
                   return (
                     <g>
                       <text
                         x={cx}
-                        y={cy - 8}
+                        y={cy - (pct ? 14 : 8)}
                         textAnchor="middle"
                         dominantBaseline="central"
                         className="fill-muted-foreground text-xs"
                       >
-                        Total
+                        {label}
                       </text>
                       <text
                         x={cx}
-                        y={cy + 12}
+                        y={cy + (pct ? 4 : 12)}
                         textAnchor="middle"
                         dominantBaseline="central"
                         className="fill-foreground text-sm font-semibold"
                       >
-                        {formatCurrency(totalValue)}
+                        {formatCurrency(value)}
                       </text>
+                      {pct && (
+                        <text
+                          x={cx}
+                          y={cy + 22}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          className="fill-muted-foreground text-xs"
+                        >
+                          {pct}
+                        </text>
+                      )}
                     </g>
                   )
                 }}
               />
             </Pie>
-            <Tooltip
-              formatter={(value: number) => formatCurrency(value)}
-              contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                color: 'hsl(var(--popover-foreground))',
-              }}
-            />
           </PieChart>
         </ResponsiveContainer>
       </div>
