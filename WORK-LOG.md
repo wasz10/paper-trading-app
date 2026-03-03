@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-03-02 (token balance sync fix: Zustand profile store for real-time header updates; deployed)
+> Last updated: 2026-03-03 (Sprint 3 complete: watchlists, analytics, token shop, social profiles; code review fixes; deployed)
 
 ---
 
@@ -393,6 +393,105 @@ Continuation session: diagnosed why `setVisibleRange` was failing to show empty 
 
 ---
 
+### Sprint 3 — Watchlists, Analytics, Token Shop, Social Profiles (4 parallel agents, 2026-03-03)
+Delivered via 4 parallel agents (commit f9a161d, 45 files changed, 2329 additions). All features have zero file overlap.
+
+#### User Watchlists (Agent 1)
+- `supabase/migrations/010_user_watchlists.sql`: user_watchlists table with UNIQUE(user_id, ticker), RLS, index
+- `src/types/watchlist.ts`: WatchlistItem interface
+- `src/app/api/watchlist/route.ts`: GET watchlist ordered by added_at DESC
+- `src/app/api/watchlist/add/route.ts`: POST add ticker with TICKER_REGEX validation, 20 free / 50 subscriber limit
+- `src/app/api/watchlist/remove/route.ts`: POST remove ticker
+- `src/components/watchlist/watchlist-button.tsx`: Star icon toggle with optimistic UI, 44px touch target
+- `src/components/watchlist/user-watchlist-grid.tsx`: useReducer fetch pattern, StockCard grid, empty state CTA
+- `src/app/(dashboard)/watchlist/page.tsx`: Watchlist page with slot counter badge
+- `src/app/(dashboard)/watchlist/loading.tsx`: Skeleton loading
+- `src/app/(dashboard)/stock/[ticker]/page.tsx`: Added WatchlistButton next to AlertButton
+
+#### Portfolio Analytics (Agent 2)
+- `src/types/analytics.ts`: AnalyticsData, TradeHighlight, TickerPnL, MonthlyReturn interfaces
+- `src/lib/analytics/calculations.ts`: 5 pure functions (computeWinRate, computeBestWorstTrades, computePnLByTicker, computeMonthlyReturns, computeAvgGainLoss)
+- `src/lib/analytics/calculations.test.ts`: 18 Vitest unit tests covering all edge cases
+- `src/app/api/analytics/route.ts`: GET endpoint fetching trades + snapshots, running calculations
+- `src/components/analytics/stats-cards.tsx`: 4-card grid (Total Trades, Win Rate, Avg Gain, Avg Loss)
+- `src/components/analytics/best-worst-trades.tsx`: Side-by-side best/worst trade cards
+- `src/components/analytics/pnl-by-ticker-chart.tsx`: Horizontal Recharts bar chart (green=profit, red=loss)
+- `src/components/analytics/monthly-returns-chart.tsx`: Vertical Recharts bar chart of monthly return %
+- `src/app/(dashboard)/analytics/page.tsx`: Analytics page with loading/error/empty states
+- `src/app/(dashboard)/analytics/loading.tsx`: Skeleton loading
+
+#### Token Shop (Agent 3)
+- `supabase/migrations/011_token_shop.sql`: user_purchases table with RLS, cosmetic columns on users (active_theme, active_badge_frame, bonus_trades_today)
+- `src/types/shop.ts`: ShopCategory, ShopItem, ShopItemWithOwnership types
+- `src/lib/shop/items.ts`: SHOP_ITEMS catalog (3 themes, 3 badge frames, 1 boost, 1 perk)
+- `src/app/api/shop/items/route.ts`: GET items with ownership status + balance
+- `src/app/api/shop/purchase/route.ts`: POST purchase with optimistic lock on token_balance, effect application
+- `src/components/shop/shop-item-card.tsx`: Card with icon, name, price badge, buy/owned button
+- `src/components/shop/shop-category-tabs.tsx`: Horizontal scrollable category filter tabs
+- `src/components/shop/purchase-dialog.tsx`: Confirmation dialog with balance breakdown
+- `src/app/(dashboard)/shop/page.tsx`: Shop page with filtering, purchase flow, profile store sync
+- `src/app/(dashboard)/shop/loading.tsx`: Skeleton loading
+
+#### Social Profiles (Agent 4)
+- `src/types/trader.ts`: PublicProfile interface
+- `src/app/api/trader/[id]/route.ts`: GET public profile with admin client, privacy check (404 for show_display_name=false)
+- `src/components/trader/profile-header.tsx`: Name, PRO badge, member since, streak
+- `src/components/trader/profile-stats.tsx`: 4-card grid (Return %, Total Trades, Streak, Achievements)
+- `src/components/trader/profile-achievements.tsx`: Grid of unlocked achievements from ACHIEVEMENTS (read-only import)
+- `src/components/trader/share-button.tsx`: Copy profile URL to clipboard
+- `src/app/(dashboard)/trader/[id]/page.tsx`: Public profile page with loading/404 states
+- `src/app/(dashboard)/trader/[id]/loading.tsx`: Skeleton loading
+- `src/types/index.ts`: Added user_id to LeaderboardEntry
+- `src/app/api/leaderboard/route.ts`: Exposes user_id for public profiles only
+- `src/components/leaderboard/leaderboard-row.tsx`: Wrapped in Link when user_id present
+
+#### Integration & Build Fix
+- `src/components/layout/sidebar.tsx`: Added Watchlist, Analytics, Shop to NAV_ITEMS
+- `src/components/layout/bottom-nav.tsx`: Added Watchlist, Analytics, Shop to MORE_ITEMS
+- `src/lib/game/achievement-defs.ts`: Extracted achievement definitions from achievements.ts to avoid web-push import in client components
+- `src/lib/game/achievements.ts`: Re-exports from achievement-defs.ts
+
+#### Build Stats
+- `npm run build`: 62 routes, 0 errors
+- `npm run lint`: 0 errors, 0 warnings
+- `npx vitest run`: 85 tests pass (67 existing + 18 new analytics tests)
+- Pushed to GitHub, Vercel deploy triggered
+
+### Sprint 3 Code Review Fixes (commit e781840, 9 files changed, 99 insertions, 49 deletions)
+Automated code review via code-improver agent on all 45 Sprint 3 files. 6 critical, 8 important, 6 suggestions found. 10 fixes applied.
+
+**Critical fixes:**
+- `src/app/api/shop/purchase/route.ts`: Concurrent non-repeatable purchase — tokens deducted but purchase insert fails; now refunds tokens on unique constraint violation
+- `src/app/api/shop/purchase/route.ts`: `boost_cash` used absolute write with no optimistic lock — now uses `.eq('cash_balance', profile.cash_balance)` with retry
+- `src/app/api/shop/purchase/route.ts`: `perk_trades` used stale `bonus_trades_today` — now re-fetches before increment
+- `src/app/api/watchlist/remove/route.ts`: Missing TICKER_REGEX validation — added to match add route
+
+**Important fixes:**
+- `src/lib/analytics/calculations.ts`: O(n²) `trades.indexOf(sell)` in 3 functions — replaced with pre-built index array
+- `src/components/watchlist/watchlist-button.tsx`: Added AbortController to fetch, removed unused useCallback
+- `src/components/watchlist/user-watchlist-grid.tsx`: Replaced isMounted ref with AbortController for proper fetch cleanup on unmount
+- `src/app/api/analytics/route.ts`: Unbounded SELECT * — added LIMIT 5000 trades, 1000 snapshots
+- `src/app/api/shop/purchase/route.ts`: token_transactions insert error not checked — now logs on failure
+- `src/app/(dashboard)/shop/page.tsx`: Fetch and purchase errors swallowed silently — now shows toast errors
+
+**Suggestions fixed:**
+- `src/components/analytics/pnl-by-ticker-chart.tsx`: Axis tickFormatter uses `.toFixed(0)` for proper dollar formatting
+- `src/components/analytics/monthly-returns-chart.tsx`: Month labels now include year ("Jan '26") to prevent duplicates across years
+
+**Not fixed (noted for future):**
+- achievements.ts uses 'daily_reward' reason for achievement tokens (needs DB migration for new enum value)
+- admin.ts missing env guard on SUPABASE_SERVICE_ROLE_KEY (pre-existing)
+- hasProfitableSell heuristic in achievements.ts (pre-existing)
+- TOCTOU on watchlist count limit (acceptable off-by-1 edge case)
+- bonus_trades_today has no daily reset mechanism (needs companion date column)
+
+### Deployment (Sprint 3, 2026-03-03)
+- Deployed via `npx vercel --prod` to https://paper-trading-app-delta.vercel.app
+- 62 routes, 0 build errors
+- Supabase migrations 010-011 applied (user_watchlists, user_purchases tables + cosmetic columns)
+
+---
+
 ## In Progress
 Nothing currently in progress.
 
@@ -410,7 +509,7 @@ Nothing currently in progress.
 ## Known Issues / Context
 
 ### Architecture
-- **29 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status)
+- **62 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback, /watchlist, /analytics, /shop, /trader/[id]), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status, /api/watchlist, /api/watchlist/add, /api/watchlist/remove, /api/analytics, /api/shop/items, /api/shop/purchase, /api/trader/[id])
 - **Layout**: Desktop = left sidebar (w-64) + header + main. Mobile = bottom nav (h-16) + header + full-width. Both share 5 nav items: Dashboard, Explore, Rewards, Leaderboard, Settings.
 - **Dashboard layout**: `src/app/(dashboard)/layout.tsx` is a server component that does auth check + profile fetch.
 - **State management**: Zustand stores for portfolio, trade, and profile state (token balance, display name); server components fetch directly from Supabase. Profile store hydrated via `<ProfileInitializer>` bridge component in dashboard layout.
@@ -439,15 +538,19 @@ Nothing currently in progress.
 - 1D chart rightOffset (commit 2f077a0, updated a042e81): x-axis extends to 8 PM ET via `rightOffset` + `fitContent()`. Original `setVisibleRange` approach silently clamped to last data point (LWC v4 limitation). `timeVisible: true` fixes intraday axis labels.
 - Allocation chart hover (commit 1f8b5e5): removed Tooltip component, center label dynamically shows hovered segment details.
 - **Vercel auto-deploy is broken** — Git integration not triggering on push. Workaround: `NODE_TLS_REJECT_UNAUTHORIZED=0 npx vercel --prod` for manual deployment through corporate proxy.
+- Sprint 3 code review fixes (commit e781840) deployed. 10 issues fixed: purchase race condition token refund, boost_cash optimistic lock, perk_trades stale value, watchlist remove validation, analytics O(n²) indexOf, AbortController in watchlist components, analytics query LIMIT, shop error toasts, chart formatting.
+- `bonus_trades_today` column has no daily reset mechanism — needs companion `bonus_trades_date` column and reset logic in the trade validation flow.
+- achievements.ts uses `'daily_reward'` as TokenReason for achievement token grants — should be a new `'achievement'` enum value (requires DB migration).
 
 ### Database
 - **Supabase project**: ref `xteeugmsfirnqiphjjtg`, URL `https://xteeugmsfirnqiphjjtg.supabase.co`
-- **Tables**: users, holdings, trades, daily_rewards, token_transactions, leaderboard_cache, portfolio_snapshots, tutorial_progress
+- **Tables**: users, holdings, trades, daily_rewards, token_transactions, leaderboard_cache, portfolio_snapshots, tutorial_progress, user_watchlists, user_purchases
 - **RLS**: enabled on all tables. Users read/write own data only. leaderboard_cache is public SELECT.
-- **Migrations**: `001_initial_schema.sql`, `002_architecture_additions.sql`, `003_portfolio_snapshots.sql`, `004_tutorial_progress.sql`
+- **Migrations**: `001_initial_schema.sql`, `002_architecture_additions.sql`, `003_portfolio_snapshots.sql`, `004_tutorial_progress.sql`, `010_user_watchlists.sql`, `011_token_shop.sql`
 
 ### Git
 - **Branch**: master, build + lint clean (0 errors, 0 warnings)
+- **Latest commit**: e781840 on master
 - **GitHub**: https://github.com/wasz10/paper-trading-app
 
 ### Workflow
@@ -516,6 +619,51 @@ Nothing currently in progress.
 | `src/app/(dashboard)/layout.tsx` | modified | **e938b10**: Added ProfileInitializer, Header now takes no props |
 | `src/app/(dashboard)/rewards/page.tsx` | modified | **e938b10**: Calls addTokens() after daily reward claim |
 | `src/hooks/useTutorialStep.ts` | modified | **e938b10**: Calls addTokens() after tutorial step completion |
+| `supabase/migrations/010_user_watchlists.sql` | created | **f9a161d**: user_watchlists table with UNIQUE(user_id, ticker), RLS, index |
+| `supabase/migrations/011_token_shop.sql` | created | **f9a161d**: user_purchases table with RLS, cosmetic columns on users |
+| `src/types/watchlist.ts` | created | **f9a161d**: WatchlistItem interface |
+| `src/types/analytics.ts` | created | **f9a161d**: AnalyticsData, TradeHighlight, TickerPnL, MonthlyReturn interfaces |
+| `src/types/shop.ts` | created | **f9a161d**: ShopCategory, ShopItem, ShopItemWithOwnership types |
+| `src/types/trader.ts` | created | **f9a161d**: PublicProfile interface |
+| `src/types/index.ts` | modified | **f9a161d**: Added user_id to LeaderboardEntry |
+| `src/app/api/watchlist/route.ts` | created | **f9a161d**: GET watchlist ordered by added_at DESC |
+| `src/app/api/watchlist/add/route.ts` | created | **f9a161d**: POST add ticker with validation, 20/50 limit |
+| `src/app/api/watchlist/remove/route.ts` | created | **f9a161d**: POST remove ticker |
+| `src/app/api/analytics/route.ts` | created | **f9a161d**: GET endpoint fetching trades + snapshots, running calculations |
+| `src/app/api/shop/items/route.ts` | created | **f9a161d**: GET items with ownership status + balance |
+| `src/app/api/shop/purchase/route.ts` | created | **f9a161d**: POST purchase with optimistic lock on token_balance |
+| `src/app/api/trader/[id]/route.ts` | created | **f9a161d**: GET public profile with admin client, privacy check |
+| `src/app/api/leaderboard/route.ts` | modified | **f9a161d**: Exposes user_id for public profiles only |
+| `src/lib/analytics/calculations.ts` | created | **f9a161d**: 5 pure functions (winRate, bestWorst, PnL by ticker, monthly, avgGainLoss) |
+| `src/lib/analytics/calculations.test.ts` | created | **f9a161d**: 18 Vitest unit tests covering all edge cases |
+| `src/lib/shop/items.ts` | created | **f9a161d**: SHOP_ITEMS catalog (3 themes, 3 badge frames, 1 boost, 1 perk) |
+| `src/lib/game/achievement-defs.ts` | created | **f9a161d**: Extracted achievement definitions to avoid web-push import in client components |
+| `src/lib/game/achievements.ts` | modified | **f9a161d**: Re-exports from achievement-defs.ts |
+| `src/components/watchlist/watchlist-button.tsx` | created | **f9a161d**: Star icon toggle with optimistic UI, 44px touch target |
+| `src/components/watchlist/user-watchlist-grid.tsx` | created | **f9a161d**: useReducer fetch pattern, StockCard grid, empty state CTA |
+| `src/components/analytics/stats-cards.tsx` | created | **f9a161d**: 4-card grid (Total Trades, Win Rate, Avg Gain, Avg Loss) |
+| `src/components/analytics/best-worst-trades.tsx` | created | **f9a161d**: Side-by-side best/worst trade cards |
+| `src/components/analytics/pnl-by-ticker-chart.tsx` | created | **f9a161d**: Horizontal Recharts bar chart (green=profit, red=loss) |
+| `src/components/analytics/monthly-returns-chart.tsx` | created | **f9a161d**: Vertical Recharts bar chart of monthly return % |
+| `src/components/shop/shop-item-card.tsx` | created | **f9a161d**: Card with icon, name, price badge, buy/owned button |
+| `src/components/shop/shop-category-tabs.tsx` | created | **f9a161d**: Horizontal scrollable category filter tabs |
+| `src/components/shop/purchase-dialog.tsx` | created | **f9a161d**: Confirmation dialog with balance breakdown |
+| `src/components/trader/profile-header.tsx` | created | **f9a161d**: Name, PRO badge, member since, streak |
+| `src/components/trader/profile-stats.tsx` | created | **f9a161d**: 4-card grid (Return %, Total Trades, Streak, Achievements) |
+| `src/components/trader/profile-achievements.tsx` | created | **f9a161d**: Grid of unlocked achievements |
+| `src/components/trader/share-button.tsx` | created | **f9a161d**: Copy profile URL to clipboard |
+| `src/components/leaderboard/leaderboard-row.tsx` | modified | **f9a161d**: Wrapped in Link when user_id present |
+| `src/components/layout/sidebar.tsx` | modified | **f9a161d**: Added Watchlist, Analytics, Shop to NAV_ITEMS |
+| `src/components/layout/bottom-nav.tsx` | modified | **f9a161d**: Added Watchlist, Analytics, Shop to MORE_ITEMS |
+| `src/app/(dashboard)/watchlist/page.tsx` | created | **f9a161d**: Watchlist page with slot counter badge |
+| `src/app/(dashboard)/watchlist/loading.tsx` | created | **f9a161d**: Skeleton loading |
+| `src/app/(dashboard)/analytics/page.tsx` | created | **f9a161d**: Analytics page with loading/error/empty states |
+| `src/app/(dashboard)/analytics/loading.tsx` | created | **f9a161d**: Skeleton loading |
+| `src/app/(dashboard)/shop/page.tsx` | created | **f9a161d**: Shop page with filtering, purchase flow, profile store sync |
+| `src/app/(dashboard)/shop/loading.tsx` | created | **f9a161d**: Skeleton loading |
+| `src/app/(dashboard)/trader/[id]/page.tsx` | created | **f9a161d**: Public profile page with loading/404 states |
+| `src/app/(dashboard)/trader/[id]/loading.tsx` | created | **f9a161d**: Skeleton loading |
+| `src/app/(dashboard)/stock/[ticker]/page.tsx` | modified | **f9a161d**: Added WatchlistButton next to AlertButton |
 
 ---
 
