@@ -6,8 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase/client'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { LogOut, Save, Loader2, GraduationCap } from 'lucide-react'
+import { LogOut, Save, Loader2, GraduationCap, Trash2 } from 'lucide-react'
 import type { TutorialStyle } from '@/components/tutorial/tutorial-switcher'
 
 const TUTORIAL_STYLE_OPTIONS: { value: TutorialStyle; label: string }[] = [
@@ -39,6 +46,9 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [tutorialStyle, setTutorialStyle] = useState<TutorialStyle>('banner')
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteConfirmName, setDeleteConfirmName] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Load tutorial style from localStorage
   useEffect(() => {
@@ -127,6 +137,29 @@ export default function SettingsPage() {
     setIsLoggingOut(true)
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  async function handleDeleteAccount() {
+    setIsDeleting(true)
+    try {
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmName: deleteConfirmName }),
+      })
+      const json = await res.json()
+      if (json.data?.deleted) {
+        await supabase.auth.signOut()
+        toast.success('Account deleted')
+        router.push('/login')
+      } else {
+        toast.error(json.error || 'Failed to delete account')
+      }
+    } catch {
+      toast.error('Failed to delete account')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   if (isLoading) {
@@ -284,6 +317,60 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <Card className="border-destructive/50">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+          <CardDescription>Permanently delete your account and all data</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete My Account
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Account</DialogTitle>
+            <DialogDescription>
+              This will permanently delete your account and all data. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="confirmDelete" className="text-sm font-medium">
+                Type your display name to confirm
+              </label>
+              <Input
+                id="confirmDelete"
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                placeholder={displayName}
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmName !== displayName || isDeleting}
+              >
+                {isDeleting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                {isDeleting ? 'Deleting...' : 'Delete Forever'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
