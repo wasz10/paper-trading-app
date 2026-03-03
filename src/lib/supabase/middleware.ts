@@ -1,7 +1,39 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+async function hmacHex(secret: string, message: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(message))
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 export async function updateSession(request: NextRequest) {
+  // Site password gate — if SITE_PASSWORD is set, require cookie before any other logic
+  const sitePassword = process.env.SITE_PASSWORD
+  if (sitePassword) {
+    const pathname = request.nextUrl.pathname
+    if (
+      pathname !== '/gate' &&
+      !pathname.startsWith('/api/gate') &&
+      !pathname.startsWith('/api/cron')
+    ) {
+      const cookie = request.cookies.get('site-password-ok')?.value
+      const expected = await hmacHex(sitePassword, 'paper-trade-gate')
+      if (cookie !== expected) {
+        return NextResponse.redirect(new URL('/gate', request.url))
+      }
+    }
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
