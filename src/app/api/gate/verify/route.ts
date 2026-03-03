@@ -25,7 +25,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { password } = body
 
-    if (!password || password !== sitePassword) {
+    // Constant-time comparison via HMAC to prevent timing attacks
+    if (!password) {
+      return NextResponse.json({ error: 'Wrong password' }, { status: 401 })
+    }
+    const inputHmac = await hmacHex(sitePassword, password)
+    const expectedHmac = await hmacHex(sitePassword, sitePassword)
+    if (inputHmac !== expectedHmac) {
       return NextResponse.json({ error: 'Wrong password' }, { status: 401 })
     }
 

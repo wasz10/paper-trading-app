@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { balance } = await request.json()
-    if (typeof balance !== 'number' || balance < 0 || balance > MAX_TOKENS) {
+    if (typeof balance !== 'number' || !Number.isInteger(balance) || balance < 0 || balance > MAX_TOKENS) {
       return NextResponse.json({ error: `Invalid balance (0-${MAX_TOKENS})` }, { status: 400 })
     }
 

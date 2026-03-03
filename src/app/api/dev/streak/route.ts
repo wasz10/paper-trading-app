@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { streak } = await request.json()
-    if (typeof streak !== 'number' || streak < 0 || streak > MAX_STREAK) {
+    if (typeof streak !== 'number' || !Number.isInteger(streak) || streak < 0 || streak > MAX_STREAK) {
       return NextResponse.json({ error: `Invalid streak (0-${MAX_STREAK})` }, { status: 400 })
     }
 

@@ -17,7 +17,12 @@ import type { LeaderboardEntry, StockQuote } from '@/types'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl
-    const period = (searchParams.get('period') ?? 'all-time') as LeaderboardPeriod
+    const periodParam = searchParams.get('period') ?? 'all-time'
+    const validPeriods: LeaderboardPeriod[] = ['daily', 'weekly', 'all-time']
+    if (!validPeriods.includes(periodParam as LeaderboardPeriod)) {
+      return NextResponse.json({ error: 'Invalid period' }, { status: 400 })
+    }
+    const period = periodParam as LeaderboardPeriod
 
     const supabase = await createClient()
 
@@ -39,8 +44,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Use admin client for cross-user reads (RLS restricts to own rows only)
+    const admin = createAdminClient()
+
     // Fetch all users
-    const { data: users, error: usersError } = await supabase
+    const { data: users, error: usersError } = await admin
       .from('users')
       .select('id, display_name, cash_balance, is_subscriber, show_display_name')
 
@@ -53,7 +61,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all holdings
-    const { data: holdings, error: holdingsError } = await supabase
+    const { data: holdings, error: holdingsError } = await admin
       .from('holdings')
       .select('user_id, ticker, shares')
 
@@ -100,8 +108,7 @@ export async function GET(request: NextRequest) {
     const snapshotMap = new Map<string, number>()
 
     if (snapshotDate) {
-      const adminClient = createAdminClient()
-      const { data: snapshots } = await adminClient
+      const { data: snapshots } = await admin
         .from('portfolio_snapshots')
         .select('user_id, total_value_cents')
         .lte('snapshot_date', snapshotDate)

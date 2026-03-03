@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     const admin = createAdminClient()
 
     // Delete from all tables in dependency order — abort if any fail
-    const tables = [
+    // Tables with user_id foreign key
+    const userIdTables = [
       'tutorial_progress',
       'token_transactions',
       'daily_rewards',
@@ -45,16 +46,22 @@ export async function POST(request: NextRequest) {
       'leaderboard_cache',
       'trades',
       'holdings',
-      'users',
     ]
 
     const failedTables: string[] = []
-    for (const table of tables) {
+    for (const table of userIdTables) {
       const { error } = await admin.from(table).delete().eq('user_id', user.id)
       if (error) {
         console.error(`Failed to delete from ${table}:`, error)
         failedTables.push(table)
       }
+    }
+
+    // Delete from users table — PK column is 'id', not 'user_id'
+    const { error: usersError } = await admin.from('users').delete().eq('id', user.id)
+    if (usersError) {
+      console.error('Failed to delete from users:', usersError)
+      failedTables.push('users')
     }
 
     if (failedTables.length > 0) {
