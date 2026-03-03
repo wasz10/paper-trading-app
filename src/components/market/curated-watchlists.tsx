@@ -1,102 +1,118 @@
 'use client'
 
-import { useEffect, useReducer, useRef, useMemo } from 'react'
+import { useEffect, useReducer } from 'react'
+import Link from 'next/link'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { StockCard } from './stock-card'
 import { CURATED_WATCHLISTS } from '@/lib/market/watchlists'
+import { cn, formatDollars, formatPercent } from '@/lib/utils'
 import type { StockQuote } from '@/types'
+
+const ALL_TICKERS = [...new Set(CURATED_WATCHLISTS.flatMap((w) => w.tickers))]
 
 interface State {
   quotes: Map<string, StockQuote>
-  isLoading: boolean
+  loading: boolean
 }
 
 type Action =
-  | { type: 'FETCH_START' }
-  | { type: 'FETCH_DONE'; quotes: Map<string, StockQuote> }
+  | { type: 'LOADED'; quotes: Map<string, StockQuote> }
+  | { type: 'ERROR' }
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
-    case 'FETCH_START':
-      return { ...state, isLoading: true }
-    case 'FETCH_DONE':
-      return { quotes: action.quotes, isLoading: false }
+    case 'LOADED':
+      return { quotes: action.quotes, loading: false }
+    case 'ERROR':
+      return { ...state, loading: false }
   }
 }
 
 export function CuratedWatchlists() {
   const [state, dispatch] = useReducer(reducer, {
     quotes: new Map(),
-    isLoading: true,
+    loading: true,
   })
-  const isMounted = useRef(true)
-
-  const allTickers = useMemo(() => {
-    const set = new Set<string>()
-    for (const wl of CURATED_WATCHLISTS) {
-      for (const t of wl.tickers) {
-        set.add(t)
-      }
-    }
-    return Array.from(set)
-  }, [])
 
   useEffect(() => {
-    return () => {
-      isMounted.current = false
-    }
-  }, [])
-
-  useEffect(() => {
-    dispatch({ type: 'FETCH_START' })
+    const controller = new AbortController()
 
     Promise.all(
-      allTickers.map(async (ticker) => {
-        try {
-          const res = await fetch(`/api/market/quote/${ticker}`)
-          const json = await res.json()
-          return json.data as StockQuote | null
-        } catch {
-          return null
-        }
-      })
+      ALL_TICKERS.map((ticker) =>
+        fetch(`/api/market/quote/${ticker}`, { signal: controller.signal })
+          .then((res) => {
+            if (!res.ok) return null
+            return res.json().then((json) => json.data as StockQuote | null)
+          })
+          .catch(() => null)
+      )
     ).then((results) => {
-      if (isMounted.current) {
-        const map = new Map<string, StockQuote>()
-        for (const q of results) {
-          if (q) map.set(q.ticker, q)
-        }
-        dispatch({ type: 'FETCH_DONE', quotes: map })
-      }
+      if (controller.signal.aborted) return
+      const quotes = new Map<string, StockQuote>()
+      results.forEach((q, i) => {
+        if (q) quotes.set(ALL_TICKERS[i], q)
+      })
+      dispatch({ type: 'LOADED', quotes })
     })
-  }, [allTickers])
+
+    return () => controller.abort()
+  }, [])
+
+  if (state.loading) {
+    return (
+      <div className="space-y-4">
+        {CURATED_WATCHLISTS.map((list) => (
+          <div key={list.id}>
+            <div className="mb-2">
+              <Skeleton className="h-4 w-24 mb-1" />
+              <Skeleton className="h-3 w-40" />
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {list.tickers.map((ticker) => (
+                <Card key={ticker} className="shrink-0 w-[140px] p-3">
+                  <Skeleton className="h-4 w-12 mb-2" />
+                  <Skeleton className="h-5 w-16 mb-1" />
+                  <Skeleton className="h-4 w-14" />
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      {CURATED_WATCHLISTS.map((watchlist) => (
-        <div key={watchlist.id} className="space-y-2">
-          <div>
-            <h2 className="text-lg font-semibold">{watchlist.title}</h2>
-            <p className="text-sm text-muted-foreground">
-              {watchlist.description}
-            </p>
+    <div className="space-y-4">
+      {CURATED_WATCHLISTS.map((list) => (
+        <div key={list.id}>
+          <div className="mb-2">
+            <h3 className="text-sm font-semibold">{list.title}</h3>
+            <p className="text-xs text-muted-foreground">{list.description}</p>
           </div>
-          <div className="flex overflow-x-auto scrollbar-hide gap-3 pb-1">
-            {state.isLoading
-              ? watchlist.tickers.map((t) => (
-                  <Skeleton
-                    key={t}
-                    className="h-[100px] min-w-[140px] rounded-lg shrink-0"
-                  />
-                ))
-              : watchlist.tickers
-                  .map((t) => state.quotes.get(t))
-                  .filter((q): q is StockQuote => q !== undefined)
-                  .map((quote) => (
-                    <div key={quote.ticker} className="min-w-[140px] shrink-0">
-                      <StockCard quote={quote} />
-                    </div>
-                  ))}
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1" role="list" aria-label={`${list.title} stocks`} tabIndex={0}>
+            {list.tickers.map((ticker) => {
+              const quote = state.quotes.get(ticker)
+              if (!quote) return null
+
+              const isPositive = quote.changePercent >= 0
+
+              return (
+                <Link key={ticker} href={`/stock/${ticker}`} role="listitem">
+                  <Card className="shrink-0 w-[140px] p-3 hover:bg-accent/50 transition-colors cursor-pointer">
+                    <p className="text-xs font-semibold truncate">{ticker}</p>
+                    <p className="text-sm font-bold mt-1">{formatDollars(quote.price)}</p>
+                    <Badge
+                      variant="secondary"
+                      className={cn('text-xs mt-1', isPositive ? 'text-gain' : 'text-loss')}
+                    >
+                      {formatPercent(quote.changePercent)}
+                    </Badge>
+                  </Card>
+                </Link>
+              )
+            })}
           </div>
         </div>
       ))}
