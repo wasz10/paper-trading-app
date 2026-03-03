@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-async function hmacHex(secret: string, message: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(message))
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
+import { hmacHex } from '@/lib/crypto'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
     const sitePassword = process.env.SITE_PASSWORD
     if (!sitePassword) {
       return NextResponse.json({ error: 'Gate not configured' }, { status: 500 })
+    }
+
+    // Rate limit by IP — 5 attempts per minute
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+    const { allowed, retryAfterMs } = checkRateLimit(`gate:${ip}`, 5, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many attempts. Try again later.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) },
+        }
+      )
     }
 
     const body = await request.json()
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({ ok: true })
     response.cookies.set('site-password-ok', cookieValue, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 30, // 30 days

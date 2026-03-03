@@ -1,29 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkDevAccess } from '@/lib/dev-guard'
+
+const MAX_TOKENS = 100_000
 
 export async function POST(request: NextRequest) {
-  if (process.env.DEV_PANEL_ENABLED !== 'true') {
-    return NextResponse.json({ error: 'Dev panel disabled' }, { status: 403 })
-  }
+  const access = await checkDevAccess()
+  if (!access.allowed) return access.response
 
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { balance } = await request.json()
-    if (typeof balance !== 'number' || balance < 0) {
-      return NextResponse.json({ error: 'Invalid balance' }, { status: 400 })
+    if (typeof balance !== 'number' || balance < 0 || balance > MAX_TOKENS) {
+      return NextResponse.json({ error: `Invalid balance (0-${MAX_TOKENS})` }, { status: 400 })
     }
 
     const admin = createAdminClient()
     const { error } = await admin
       .from('users')
       .update({ token_balance: balance })
-      .eq('id', user.id)
+      .eq('id', access.userId)
 
     if (error) {
       return NextResponse.json({ error: 'Failed to update' }, { status: 500 })

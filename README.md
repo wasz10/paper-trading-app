@@ -13,6 +13,9 @@ A gamified stock market simulation platform where users trade with fake money us
 - **Leaderboard** — Ranked by return percentage with daily, weekly, and all-time period filtering
 - **Gamification** — Daily login streaks, token rewards, weekly challenges, and a 5-step tutorial quest system
 - **AI Trade Coach** — Claude-powered analysis of every trade with risk assessment and educational insights
+- **Site Password Gate** — Optional private-beta password wall using HMAC-SHA256 cookie validation in middleware
+- **Account Deletion** — Cascade delete across all tables with type-to-confirm safety dialog
+- **Developer Panel** — URL-only `/dev` page with state manipulation tools (tokens, cash, streak, snapshot, tutorial, reset), gated by env var + email allowlist
 - **Responsive Design** — Mobile-first with sidebar navigation on desktop and bottom nav on mobile
 
 ## Tech Stack
@@ -68,6 +71,9 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase service role key (server-only) |
 | `ANTHROPIC_API_KEY` | No | Anthropic API key for AI trade coach |
 | `CRON_SECRET` | No | Bearer token for scheduled snapshot cron job |
+| `SITE_PASSWORD` | No | Password to gate entire site (leave empty to disable) |
+| `DEV_PANEL_ENABLED` | No | Set to `true` to enable `/dev` tools page |
+| `DEV_ALLOWED_EMAILS` | No | Comma-separated emails allowed to use dev panel |
 
 ## Project Structure
 
@@ -75,8 +81,9 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 src/
 ├── app/
 │   ├── (auth)/             # Login, signup, onboarding
-│   ├── (dashboard)/        # Dashboard, explore, stock, trade, rewards, leaderboard, settings
-│   └── api/                # API routes (trade, market, rewards, leaderboard, tutorial, cron)
+│   ├── (dashboard)/        # Dashboard, explore, stock, trade, rewards, leaderboard, settings, dev
+│   ├── gate/               # Site password gate page
+│   └── api/                # API routes (trade, market, rewards, leaderboard, tutorial, cron, gate, dev, account)
 ├── components/
 │   ├── ui/                 # shadcn/ui base components
 │   ├── trade/              # Buy/sell modals with bidirectional sync
@@ -127,6 +134,9 @@ Migrations are in `supabase/migrations/`.
 - Trade execution uses **optimistic locking** on cash balance to prevent double-spend
 - Server components fetch data; client components hydrate via Zustand stores
 - Profile state (display name, token balance) bridges server-to-client via `ProfileInitializer`
+- **Site password gate** runs in Edge middleware before auth, using HMAC-SHA256 cookie + rate limiting
+- **Dev panel** guarded by `DEV_PANEL_ENABLED` env var + optional `DEV_ALLOWED_EMAILS` email allowlist
+- Account deletion cascades through all 8 tables before deleting the auth user, aborting on failure
 
 ## License
 

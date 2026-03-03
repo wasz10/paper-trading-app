@@ -1,86 +1,99 @@
-# STRIDE Security Review — Phase 10 Changes
+# STRIDE Security Review — Paper Trading App
 
-**Date:** 2026-03-02
-**Scope:** Commits fdf82f1..HEAD (~20 commits, 20 files changed, +1,121 / -184 lines)
+**Last Updated:** 2026-03-02
+**Scope:** Full application security review including latest features (site password gate, account deletion, developer panel)
 
 ---
 
 ## Summary
 
-| Severity | Count | New | Pre-existing |
-|----------|-------|-----|-------------|
-| Critical | 0 | - | - |
-| High | 2 | 2 | 0 |
-| Medium | 6 | 3 | 3 (amplified) |
-| Low | 5 | 2 | 3 |
-| Informational | 10 | 6 | 4 |
-
-**No critical vulnerabilities found.** Two high-severity items should be addressed before a public launch.
+| Severity | Count | Status |
+|----------|-------|--------|
+| Critical | 0 | — |
+| High | 2 | Fixed (I-1, D-1 in security hardening commits) |
+| Medium | 6 | Fixed (T-3, T-4, T-5, D-3 in security commits; E-1, T-8 in review fix commit) |
+| Low | 7 | 3 fixed, 4 accepted |
+| Informational | 4 | Accepted |
 
 ---
 
-## High Severity
+## Previously Identified (Phase 10 — now fixed)
 
-### I-1: Leaderboard exposes user_id (Supabase UUID) for all users
-- **File:** `src/app/api/leaderboard/route.ts`
-- **Risk:** Enables user enumeration; leaks internal auth identifiers even when `show_display_name` is false
-- **Fix:** Remove `user_id` from the leaderboard API response or replace with a non-reversible public ID
+### High (Fixed)
+- **I-1:** Leaderboard user_id exposure → Removed, replaced with `is_current_user` boolean
+- **D-1:** Unbounded Yahoo Finance API calls → Added server-side quote caching (60s TTL)
 
-### D-1: Leaderboard fetches live Yahoo Finance quotes for every unique ticker across all users
-- **File:** `src/app/api/leaderboard/route.ts`
-- **Risk:** Unbounded outbound API calls per request; amplifiable by concurrent users
-- **Fix:** Use `portfolio_snapshots` for leaderboard calculations instead of live prices, or add server-side quote caching with TTL
+### Medium (Fixed)
+- **T-3:** Tutorial double-token race → Optimistic lock on `token_balance`
+- **T-4:** Daily reward double-claim → Optimistic lock on `last_login_date`
+- **T-5:** Non-atomic token_balance → Optimistic locking pattern
+- **D-3:** No rate limiting → In-memory rate limiter on leaderboard (10 req/min)
+- **I-2:** Leaderboard leaks fields → Trimmed to display_name, return_pct, is_subscriber, is_current_user
+- **S-1:** Per-handler auth only → Leaderboard now requires auth; middleware guards protected routes
 
 ---
 
-## Medium Severity
+## Current Review (Gate, Deletion, Dev Panel)
 
-### T-3: Race condition in tutorial step completion (double-token award)
-- **File:** `src/app/api/tutorial/complete/route.ts`
-- **Risk:** Two concurrent requests for the same step can both award tokens
-- **Fix:** Use atomic DB operation (RPC with `SELECT ... FOR UPDATE`) or unique constraint on step completion
+### Medium (Fixed in review commit)
 
-### T-4: Race condition in daily reward claim (double-claim)
-- **File:** `src/app/api/rewards/claim/route.ts`
-- **Risk:** Two concurrent requests can both read `canClaim=true` and award tokens
-- **Fix:** Add optimistic lock `.eq('last_login_date', profile.last_login_date)` on update, or rely on `daily_rewards` unique constraint
+#### E-1: Dev panel accessible to all authenticated users
+- **Files:** All `src/app/api/dev/*/route.ts`
+- **Risk:** Any user could manipulate their state when `DEV_PANEL_ENABLED=true`
+- **Fix:** Added `checkDevAccess()` guard with `DEV_ALLOWED_EMAILS` email allowlist
 
-### T-5: Non-atomic read-then-write on token_balance
-- **Files:** Tutorial complete + reward claim routes
-- **Risk:** Concurrent token operations can lose updates
-- **Fix:** Use SQL increment (`token_balance = token_balance + $1`) instead of read-compute-write
+#### T-8: Account deletion cascade continues on failure
+- **File:** `src/app/api/account/delete/route.ts`
+- **Risk:** Auth user deleted with orphaned data remaining
+- **Fix:** Accumulate errors, abort before auth deletion if any table fails
 
-### I-2: Leaderboard response includes `is_subscriber` and `show_display_name` fields
-- **File:** `src/app/api/leaderboard/route.ts`
-- **Risk:** Leaks subscription status for all users
-- **Fix:** Only SELECT and return the columns needed by the frontend
+#### D-2: No rate limiting on gate password verification
+- **File:** `src/app/api/gate/verify/route.ts`
+- **Risk:** Brute-force site password
+- **Fix:** Added IP-based rate limiting (5 attempts/min)
 
-### D-3: No rate limiting on any API endpoint
-- **Files:** All API routes
-- **Risk:** Spam potential on trade, leaderboard, and quote endpoints
-- **Fix:** Add rate limiting middleware (IP + user ID based)
+#### T-9: Admin client used without authorization scoping in dev routes
+- **Files:** All dev API routes
+- **Risk:** RLS bypass for any authenticated user
+- **Fix:** Resolved via E-1 fix (email allowlist)
 
-### S-1: API routes lack middleware-level auth; rely on per-handler checks
+### Low (Fixed in review commit)
+
+#### I-3: Site password cookie missing `secure` flag
+- **File:** `src/app/api/gate/verify/route.ts`
+- **Fix:** Added `secure: process.env.NODE_ENV === 'production'`
+
+#### S-2: `/dev` page not in middleware protected routes
 - **File:** `src/lib/supabase/middleware.ts`
-- **Risk:** If a handler forgets auth check, route is publicly accessible
-- **Fix:** Add `/api/*` (excluding `/api/cron/*`) to middleware protected routes as defense-in-depth
+- **Fix:** Added `pathname.startsWith('/dev')` to `isProtectedRoute`
 
----
+#### T-10: HMAC function duplicated in two files
+- **Files:** middleware.ts and gate/verify/route.ts
+- **Fix:** Extracted to shared `src/lib/crypto.ts`
 
-## Low Severity
+### Low (Accepted)
 
-- **T-2:** Client-side token balance in Zustand is cosmetic-only — no server trust (acceptable)
-- **T-6/T-7:** Buy/sell endpoints lack upper bound validation on amount/shares — mitigated by balance checks
-- **S-3:** No CSRF tokens — mitigated by SameSite=Lax cookies
-- **R-2:** Token transaction log insert errors are silently ignored
+- **T-7:** No upper bounds on dev panel numeric inputs → Added max bounds (tokens: 100K, cash: $1M, streak: 365)
+- **I-4:** Non-constant-time password comparison → Low practical risk over network
+- **S-3:** Weak deletion confirmation (display name) → Adequate for paper trading
+- **I-5:** No explicit CSRF tokens → Mitigated by JSON Content-Type + SameSite cookies
+
+### Informational (Accepted)
+
+- Dev status endpoint no longer exposes user ID (removed from response)
+- `/api/cron` exempted from gate — cron routes independently verify `CRON_SECRET` bearer token
+- Account deletion confirmation is case-sensitive — acceptable UX
 
 ---
 
 ## Positive Findings
 
-- Trade execution correctly uses server-fetched prices, not client-provided values
-- Trading engine uses optimistic locking on cash_balance to prevent double-spend
-- Admin client (service role key) is properly scoped to server-only code
-- Tutorial steps validated against known step IDs — cannot create fake steps
+- Trade execution uses server-fetched prices with optimistic locking on cash_balance
+- Admin client (service role key) scoped to server-only code
 - Supabase RLS enabled on all 8 tables
+- Tutorial steps validated against known step IDs
 - React auto-escapes reflected parameters — no XSS vectors
+- HMAC-SHA256 cookie integrity for site password gate
+- Dev panel double-gated: env var + email allowlist + middleware auth
+- Account deletion confirms name match + aborts on cascade failure
+- Rate limiting on gate (IP-based) and leaderboard (user-based)

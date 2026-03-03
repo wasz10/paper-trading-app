@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Use admin client for cascade delete (bypasses RLS)
     const admin = createAdminClient()
 
-    // Delete from all tables in dependency order
+    // Delete from all tables in dependency order — abort if any fail
     const tables = [
       'tutorial_progress',
       'token_transactions',
@@ -48,17 +48,27 @@ export async function POST(request: NextRequest) {
       'users',
     ]
 
+    const failedTables: string[] = []
     for (const table of tables) {
       const { error } = await admin.from(table).delete().eq('user_id', user.id)
       if (error) {
         console.error(`Failed to delete from ${table}:`, error)
+        failedTables.push(table)
       }
     }
 
-    // Delete the auth user
+    if (failedTables.length > 0) {
+      return NextResponse.json(
+        { error: `Failed to delete from: ${failedTables.join(', ')}` },
+        { status: 500 }
+      )
+    }
+
+    // Only delete auth user after all data is confirmed deleted
     const { error: authError } = await admin.auth.admin.deleteUser(user.id)
     if (authError) {
       console.error('Failed to delete auth user:', authError)
+      return NextResponse.json({ error: 'Failed to delete auth account' }, { status: 500 })
     }
 
     return NextResponse.json({ data: { deleted: true } })

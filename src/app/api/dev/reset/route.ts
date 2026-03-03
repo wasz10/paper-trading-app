@@ -1,19 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkDevAccess } from '@/lib/dev-guard'
 
 export async function POST() {
-  if (process.env.DEV_PANEL_ENABLED !== 'true') {
-    return NextResponse.json({ error: 'Dev panel disabled' }, { status: 403 })
-  }
+  const access = await checkDevAccess()
+  if (!access.allowed) return access.response
 
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const admin = createAdminClient()
 
     // Delete from dependent tables
@@ -28,7 +21,7 @@ export async function POST() {
     ]
 
     for (const table of tablesToClear) {
-      await admin.from(table).delete().eq('user_id', user.id)
+      await admin.from(table).delete().eq('user_id', access.userId)
     }
 
     // Reset user to defaults
@@ -42,7 +35,7 @@ export async function POST() {
         trades_today_date: null,
         last_login_date: null,
       })
-      .eq('id', user.id)
+      .eq('id', access.userId)
 
     return NextResponse.json({ ok: true })
   } catch {

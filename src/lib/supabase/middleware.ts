@@ -1,26 +1,13 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-
-async function hmacHex(secret: string, message: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(message))
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
+import { hmacHex } from '@/lib/crypto'
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
   // Site password gate — if SITE_PASSWORD is set, require cookie before any other logic
   const sitePassword = process.env.SITE_PASSWORD
   if (sitePassword) {
-    const pathname = request.nextUrl.pathname
     if (
       pathname !== '/gate' &&
       !pathname.startsWith('/api/gate') &&
@@ -62,11 +49,10 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const pathname = request.nextUrl.pathname
-
   // Protected routes — redirect to login if not authenticated
   const isProtectedRoute =
     pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/dev') ||
     pathname.startsWith('/explore') ||
     pathname.startsWith('/stock') ||
     pathname.startsWith('/trade') ||

@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { TUTORIAL_STEPS } from '@/lib/game/tutorial'
+import { checkDevAccess } from '@/lib/dev-guard'
 
 export async function POST(request: NextRequest) {
-  if (process.env.DEV_PANEL_ENABLED !== 'true') {
-    return NextResponse.json({ error: 'Dev panel disabled' }, { status: 403 })
-  }
+  const access = await checkDevAccess()
+  if (!access.allowed) return access.response
 
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { action } = await request.json()
     const admin = createAdminClient()
 
@@ -28,7 +21,7 @@ export async function POST(request: NextRequest) {
         .from('tutorial_progress')
         .upsert(
           {
-            user_id: user.id,
+            user_id: access.userId,
             steps_completed: allSteps,
             completed_at: new Date().toISOString(),
           },
@@ -40,7 +33,7 @@ export async function POST(request: NextRequest) {
       await admin
         .from('tutorial_progress')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', access.userId)
 
       return NextResponse.json({ ok: true, action: 'reset' })
     }

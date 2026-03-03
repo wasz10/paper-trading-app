@@ -1,27 +1,20 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getQuote } from '@/lib/market/yahoo'
+import { checkDevAccess } from '@/lib/dev-guard'
 
 export async function POST() {
-  if (process.env.DEV_PANEL_ENABLED !== 'true') {
-    return NextResponse.json({ error: 'Dev panel disabled' }, { status: 403 })
-  }
+  const access = await checkDevAccess()
+  if (!access.allowed) return access.response
 
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const admin = createAdminClient()
 
     // Fetch user cash balance
     const { data: profile } = await admin
       .from('users')
       .select('cash_balance')
-      .eq('id', user.id)
+      .eq('id', access.userId)
       .single()
 
     if (!profile) {
@@ -32,7 +25,7 @@ export async function POST() {
     const { data: holdings } = await admin
       .from('holdings')
       .select('ticker, shares')
-      .eq('user_id', user.id)
+      .eq('user_id', access.userId)
 
     // Calculate holdings value
     let holdingsValueCents = 0
@@ -51,7 +44,7 @@ export async function POST() {
 
     const today = new Date().toISOString().split('T')[0]
     const snapshot = {
-      user_id: user.id,
+      user_id: access.userId,
       total_value_cents: profile.cash_balance + holdingsValueCents,
       cash_cents: profile.cash_balance,
       holdings_value_cents: holdingsValueCents,
