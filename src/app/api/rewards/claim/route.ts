@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { calculateStreak } from '@/lib/game/streaks'
 import { getRewardForDay } from '@/lib/game/rewards'
+import { checkAndAwardAchievements } from '@/lib/game/achievements'
 
 export async function POST() {
   try {
@@ -78,6 +79,9 @@ export async function POST() {
       reason: 'daily_reward' as const,
       description: `Day ${newStreak} reward`,
     })
+
+    // Fire-and-forget achievement check (streak milestones)
+    checkAndAwardAchievements(user.id).catch(() => {})
 
     return NextResponse.json({
       data: {

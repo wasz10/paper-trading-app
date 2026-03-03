@@ -1,21 +1,34 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { formatDollars } from '@/lib/utils'
 import type { StockQuote } from '@/types'
 
-function formatLargeNumber(n: number): string {
-  if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
-  return formatDollars(n)
+function formatLargeNumber(value: number): string {
+  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
+  return `$${value.toLocaleString()}`
 }
 
-function formatVolume(n: number): string {
-  if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`
-  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`
-  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`
-  return n.toLocaleString()
+function formatVolume(value: number): string {
+  if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`
+  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`
+  if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`
+  return value.toLocaleString()
+}
+
+interface StatItemProps {
+  label: string
+  value: string
+}
+
+function StatItem({ label, value }: StatItemProps) {
+  return (
+    <div className="flex justify-between items-baseline py-1.5 border-b border-border/50 last:border-0">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium tabular-nums">{value}</span>
+    </div>
+  )
 }
 
 interface StockStatsProps {
@@ -32,16 +45,13 @@ export function StockStats({ quote }: StockStatsProps) {
     stats.push({ label: 'P/E Ratio', value: quote.peRatio.toFixed(2) })
   }
   if (quote.eps != null) {
-    stats.push({ label: 'EPS', value: formatDollars(quote.eps) })
-  }
-  if (quote.dividendYield != null) {
-    stats.push({ label: 'Div Yield', value: `${quote.dividendYield.toFixed(2)}%` })
+    stats.push({ label: 'EPS', value: `$${quote.eps.toFixed(2)}` })
   }
   if (quote.fiftyTwoWeekHigh != null) {
-    stats.push({ label: '52W High', value: formatDollars(quote.fiftyTwoWeekHigh) })
+    stats.push({ label: '52W High', value: `$${quote.fiftyTwoWeekHigh.toFixed(2)}` })
   }
   if (quote.fiftyTwoWeekLow != null) {
-    stats.push({ label: '52W Low', value: formatDollars(quote.fiftyTwoWeekLow) })
+    stats.push({ label: '52W Low', value: `$${quote.fiftyTwoWeekLow.toFixed(2)}` })
   }
   if (quote.volume != null) {
     stats.push({ label: 'Volume', value: formatVolume(quote.volume) })
@@ -49,21 +59,21 @@ export function StockStats({ quote }: StockStatsProps) {
   if (quote.avgVolume != null) {
     stats.push({ label: 'Avg Volume', value: formatVolume(quote.avgVolume) })
   }
+  if (quote.dividendYield != null) {
+    stats.push({ label: 'Dividend Yield', value: `${quote.dividendYield.toFixed(2)}%` })
+  }
 
   if (stats.length === 0) return null
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Key Stats</CardTitle>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Key Statistics</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
           {stats.map((stat) => (
-            <div key={stat.label}>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <p className="font-bold">{stat.value}</p>
-            </div>
+            <StatItem key={stat.label} label={stat.label} value={stat.value} />
           ))}
         </div>
       </CardContent>

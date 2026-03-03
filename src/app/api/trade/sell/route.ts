@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeSell } from '@/lib/trading/engine'
 import { getQuote } from '@/lib/market/yahoo'
+import { checkAndAwardAchievements } from '@/lib/game/achievements'
 
 export async function POST(request: Request) {
   try {
@@ -25,11 +26,24 @@ export async function POST(request: Request) {
     }
 
     const quote = await getQuote(ticker.toUpperCase())
-    const result = await executeSell(user.id, ticker.toUpperCase(), shares, quote.priceCents)
+
+    // Check reserved shares (locked by pending sell/stop orders)
+    const { data: holding } = await supabase
+      .from('holdings')
+      .select('reserved_shares')
+      .eq('user_id', user.id)
+      .eq('ticker', ticker.toUpperCase())
+      .single()
+    const reservedShares = Number(holding?.reserved_shares ?? 0)
+
+    const result = await executeSell(user.id, ticker.toUpperCase(), shares, quote.priceCents, reservedShares)
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
+
+    // Fire-and-forget achievement check
+    checkAndAwardAchievements(user.id).catch(() => {})
 
     return NextResponse.json({ data: result.trade })
   } catch {

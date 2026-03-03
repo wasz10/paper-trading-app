@@ -48,12 +48,23 @@ export function SignupForm() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">
-          Paper<span className="text-primary">Trade</span>
-        </CardTitle>
+        <div className="md:hidden">
+          <CardTitle className="text-2xl font-bold">
+            Paper<span className="text-primary">Trade</span>
+          </CardTitle>
+        </div>
         <p className="text-sm text-muted-foreground">Create your account</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <OAuthButtons />
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">or continue with email</span>
+          </div>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             type="email"
@@ -83,15 +94,6 @@ export function SignupForm() {
             {isLoading ? 'Creating account...' : 'Sign Up'}
           </Button>
         </form>
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
-        <OAuthButtons />
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">

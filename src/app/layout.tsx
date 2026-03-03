@@ -13,6 +13,13 @@ export const metadata: Metadata = {
   description:
     "A gamified stock market simulator. Trade with fake money, learn with real data, and compete on the leaderboard.",
   keywords: ["stock market", "paper trading", "investing", "simulator", "learn"],
+  manifest: "/manifest.json",
+  themeColor: "#0a0a0a",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "PaperTrade",
+  },
 }
 
 export default function RootLayout({
@@ -22,9 +29,23 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
         <Toaster richColors position="top-center" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   )
