@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { FramedAvatar } from '@/components/ui/framed-avatar'
 import { cn, formatPercent } from '@/lib/utils'
 import type { LeaderboardEntry } from '@/types'
 
@@ -38,6 +39,14 @@ export function LeaderboardRow({ entry, rank, isCurrentUser }: LeaderboardRowPro
           <span className="text-sm font-medium text-muted-foreground">{rank}</span>
         )}
       </div>
+
+      {/* Avatar */}
+      <FramedAvatar
+        initials={entry.display_name.slice(0, 2).toUpperCase()}
+        badgeFrame={entry.active_badge_frame}
+        size="sm"
+        className="shrink-0"
+      />
 
       {/* Name */}
       <div className="flex-1 min-w-0">

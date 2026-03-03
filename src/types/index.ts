@@ -77,6 +77,7 @@ export interface LeaderboardEntry {
   total_return_pct: number
   is_subscriber: boolean
   is_current_user: boolean
+  active_badge_frame?: string | null
 }
 
 // ── Token Transaction ────────────────────────────────────────────────

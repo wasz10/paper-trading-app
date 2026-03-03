@@ -15,7 +15,7 @@ export async function GET() {
     const [{ data: profile }, { data: purchases }] = await Promise.all([
       supabase
         .from('users')
-        .select('token_balance')
+        .select('token_balance, active_theme, active_badge_frame')
         .eq('id', user.id)
         .single(),
       supabase
@@ -35,7 +35,12 @@ export async function GET() {
       owned: !item.repeatable && ownedItemIds.has(item.id),
     }))
 
-    return NextResponse.json({ data, balance: profile.token_balance })
+    return NextResponse.json({
+      data,
+      balance: profile.token_balance,
+      active_theme: profile.active_theme,
+      active_badge_frame: profile.active_badge_frame,
+    })
   } catch {
     return NextResponse.json({ error: 'Failed to fetch shop items' }, { status: 500 })
   }

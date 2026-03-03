@@ -7,4 +7,5 @@ export interface PublicProfile {
   total_return_pct: number
   trade_count: number
   achievement_ids: string[]  // list of unlocked achievement IDs
+  active_badge_frame?: string | null
 }

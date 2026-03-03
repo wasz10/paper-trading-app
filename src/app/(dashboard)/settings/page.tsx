@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { LogOut, Save, Loader2, GraduationCap, Trash2 } from 'lucide-react'
+import { AppearanceSection } from '@/components/settings/appearance-section'
 import type { TutorialStyle } from '@/components/tutorial/tutorial-switcher'
 
 const TUTORIAL_STYLE_OPTIONS: { value: TutorialStyle; label: string }[] = [
@@ -247,6 +248,8 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <AppearanceSection />
 
       <Card>
         <CardHeader>

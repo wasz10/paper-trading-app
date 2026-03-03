@@ -21,7 +21,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from('users')
-    .select('display_name, token_balance')
+    .select('display_name, token_balance, active_theme, active_badge_frame')
     .eq('id', user.id)
     .single()
 
@@ -34,6 +34,8 @@ export default async function DashboardLayout({
       <ProfileInitializer
         displayName={profile.display_name}
         tokenBalance={profile.token_balance}
+        activeTheme={profile.active_theme}
+        activeBadgeFrame={profile.active_badge_frame}
       />
       <Sidebar />
       <div className="md:pl-64">

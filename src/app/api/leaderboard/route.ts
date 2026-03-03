@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     // Fetch all users
     const { data: users, error: usersError } = await admin
       .from('users')
-      .select('id, display_name, cash_balance, is_subscriber, show_display_name')
+      .select('id, display_name, cash_balance, is_subscriber, show_display_name, active_badge_frame')
 
     if (usersError) {
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
@@ -138,6 +138,7 @@ export async function GET(request: NextRequest) {
         total_return_pct: Math.round(returnPct * 100) / 100,
         is_subscriber: u.is_subscriber,
         is_current_user: u.id === user.id,
+        active_badge_frame: u.show_display_name ? u.active_badge_frame : null,
       }
     })
 
