@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { TUTORIAL_STEPS } from '@/lib/game/tutorial'
 import { checkDevAccess } from '@/lib/dev-guard'
 
@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const { action } = await request.json()
-    const admin = createAdminClient()
+    const supabase = await createClient()
 
     if (action === 'complete') {
       const allSteps: Record<string, boolean> = {}
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         allSteps[step.id] = true
       }
 
-      await admin
+      await supabase
         .from('tutorial_progress')
         .upsert(
           {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ ok: true, action: 'complete' })
     } else if (action === 'reset') {
-      await admin
+      await supabase
         .from('tutorial_progress')
         .delete()
         .eq('user_id', access.userId)

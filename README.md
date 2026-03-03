@@ -12,15 +12,19 @@ A gamified stock market simulation platform where users trade with fake money us
 - **Stock Discovery** — Explore page with curated watchlists (Trending, Beginner Friendly, Tech Giants), category filters, and search
 - **Key Statistics** — Market cap, P/E ratio, 52-week range, volume, dividend yield, and EPS on every stock page
 
-### Portfolio & Leaderboard
+### Portfolio & Analytics
 - **Portfolio Dashboard** — Holdings list, enhanced allocation donut chart with hover details and center total value
+- **Portfolio Analytics** — Win rate, average gain/loss, best/worst trades, P&L by ticker chart, and monthly returns chart
 - **Leaderboard** — Ranked by return percentage with daily, weekly, and all-time period filtering
+- **Social Profiles** — View other traders' public profiles from the leaderboard with achievements and stats
 
 ### Gamification
 - **Daily Login Streaks** — Streak tracker with token rewards (10-50 tokens/day based on streak length)
 - **Weekly Challenges** — Time-limited goals (e.g. "Make 3 trades this week") with bonus token rewards and progress tracking
 - **Achievements & Badges** — 15 unlockable achievements across trading, profit, streak, portfolio, and misc categories with token rewards
+- **Token Shop** — Spend earned tokens on themes, badge frames, cash boosts, and extra trade perks (8 items across 4 categories)
 - **Tutorial Quest** — 5-step guided onboarding quest system
+- **User Watchlists** — Save up to 20 stocks (50 for subscribers) for quick tracking with star toggle on stock pages
 - **Price Alerts** — Set above/below price alerts with in-app and push notifications when triggered
 
 ### AI & Intelligence
@@ -45,7 +49,7 @@ A gamified stock market simulation platform where users trade with fake money us
 
 ### Developer Tools
 - **Developer Panel** — URL-only `/dev` page with state manipulation tools (tokens, cash, streak, snapshot, tutorial, reset), gated by env var + email allowlist
-- **Test Suite** — 67 unit tests via Vitest covering trade calculations, order engine, alerts engine, rewards, streaks, rate limiting, and leaderboard calculations
+- **Test Suite** — 85 unit tests via Vitest covering trade calculations, order engine, alerts engine, rewards, streaks, rate limiting, leaderboard calculations, and portfolio analytics
 
 ## Tech Stack
 
@@ -126,6 +130,10 @@ src/
 │   │   ├── rewards/           # Daily rewards & weekly challenges
 │   │   ├── achievements/      # Achievement badges gallery
 │   │   ├── leaderboard/       # Global leaderboard
+│   │   ├── watchlist/         # Personal watchlist page
+│   │   ├── analytics/         # Portfolio analytics & performance
+│   │   ├── shop/              # Token shop marketplace
+│   │   ├── trader/[id]/       # Public trader profiles
 │   │   ├── settings/          # Account settings & deletion
 │   │   └── dev/               # Developer tools panel
 │   ├── gate/                  # Site password gate page
@@ -146,6 +154,10 @@ src/
 │       │   ├── orders/        # Pending order execution (every 15 min, market hours)
 │       │   └── alerts/        # Price alert checking (every 15 min, market hours)
 │       ├── gate/              # Site password verification
+│       ├── watchlist/          # Watchlist CRUD
+│       ├── analytics/         # Portfolio analytics data
+│       ├── shop/              # Shop items & purchases
+│       ├── trader/            # Public trader profiles
 │       ├── dev/               # Dev panel actions
 │       └── account/           # Account deletion
 ├── components/
@@ -156,6 +168,10 @@ src/
 │   ├── portfolio/             # Holdings, allocation chart
 │   ├── rewards/               # Streak display, daily reward modal, challenge cards
 │   ├── notifications/         # Notification bell, push prompt
+│   ├── watchlist/             # Watchlist button & grid
+│   ├── analytics/             # Analytics charts & stat cards
+│   ├── shop/                  # Shop item cards, category tabs, purchase dialog
+│   ├── trader/                # Public profile header, stats, achievements
 │   ├── leaderboard/           # Leaderboard table
 │   ├── layout/                # Sidebar, header, bottom nav, profile initializer, page transitions
 │   ├── ai/                    # AI coach chat bubble
@@ -169,6 +185,8 @@ src/
 │   ├── notifications/         # Push notification sender
 │   ├── leaderboard/           # Period return calculations
 │   ├── game/                  # Rewards, streaks, challenges, achievements, tutorial
+│   ├── analytics/             # Portfolio analytics calculation functions
+│   ├── shop/                  # Shop item definitions
 │   ├── ai/                    # Anthropic Claude integration
 │   ├── crypto.ts              # HMAC-SHA256 utilities
 │   ├── dev-guard.ts           # Dev panel authorization
@@ -191,11 +209,11 @@ npx vitest run    # Run tests once
 
 ## Database
 
-The app uses 14 tables in Supabase with Row Level Security (RLS) enabled on all:
+The app uses 16 tables in Supabase with Row Level Security (RLS) enabled on all:
 
 | Table | Description |
 |-------|-------------|
-| `users` | Profile, cash balance, tokens, streak |
+| `users` | Profile, cash balance, tokens, streak, active theme/badge |
 | `holdings` | Current stock positions (fractional shares) |
 | `trades` | Complete trade history with AI analysis |
 | `daily_rewards` | Reward claim log |
@@ -209,8 +227,10 @@ The app uses 14 tables in Supabase with Row Level Security (RLS) enabled on all:
 | `price_alerts` | User-defined price alerts (above/below conditions) |
 | `notifications` | In-app notification inbox |
 | `user_achievements` | Unlocked achievements per user with timestamps |
+| `user_watchlists` | Personal stock watchlists (unique per user+ticker) |
+| `user_purchases` | Token shop purchase records |
 
-Migrations are in `supabase/migrations/` (001 through 009).
+Migrations are in `supabase/migrations/` (001 through 012).
 
 ## Cron Jobs (Vercel)
 
@@ -244,7 +264,7 @@ All cron endpoints are protected by the `CRON_SECRET` bearer token.
 
 ## Testing
 
-67 unit tests covering core business logic:
+85 unit tests covering core business logic:
 
 - `src/lib/trading/calculations.test.ts` — Trade cost/proceeds/P&L calculations
 - `src/lib/trading/order-engine.test.ts` — Limit, stop-loss, trailing-stop order evaluation
@@ -253,6 +273,7 @@ All cron endpoints are protected by the `CRON_SECRET` bearer token.
 - `src/lib/game/streaks.test.ts` — Streak increment, reset, and edge cases
 - `src/lib/leaderboard/calculations.test.ts` — Return percentage calculations
 - `src/lib/rate-limit.test.ts` — Rate limiter behavior
+- `src/lib/analytics/calculations.test.ts` — Win rate, P&L by ticker, monthly returns, best/worst trades
 
 Run with `npx vitest run` or `npx vitest` for watch mode.
 

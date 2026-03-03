@@ -59,21 +59,32 @@ export function WatchlistButton({ ticker }: WatchlistButtonProps) {
     }
   }
 
+  const tooltipText = isLoading
+    ? 'Watchlist'
+    : isInWatchlist
+      ? 'Remove from Watchlist'
+      : 'Add to Watchlist'
+
   return (
-    <Button
-      variant="outline"
-      size="icon"
-      className="h-10 w-10 min-w-[44px] min-h-[44px]"
-      onClick={toggleWatchlist}
-      disabled={isLoading}
-      aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-    >
-      <Star
-        className={cn(
-          'h-4 w-4 transition-colors',
-          isInWatchlist && 'fill-yellow-400 text-yellow-400'
-        )}
-      />
-    </Button>
+    <div className="group relative">
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-10 w-10 min-w-[44px] min-h-[44px]"
+        onClick={toggleWatchlist}
+        disabled={isLoading}
+        aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+      >
+        <Star
+          className={cn(
+            'h-4 w-4 transition-colors',
+            isInWatchlist && 'fill-yellow-400 text-yellow-400'
+          )}
+        />
+      </Button>
+      <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md border opacity-0 group-hover:opacity-100 transition-opacity">
+        {tooltipText}
+      </span>
+    </div>
   )
 }

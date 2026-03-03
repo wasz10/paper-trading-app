@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { checkDevAccess } from '@/lib/dev-guard'
 
 const MAX_TOKENS = 100_000
@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Invalid balance (0-${MAX_TOKENS})` }, { status: 400 })
     }
 
-    const admin = createAdminClient()
-    const { error } = await admin
+    const supabase = await createClient()
+    const { error } = await supabase
       .from('users')
       .update({ token_balance: balance })
       .eq('id', access.userId)

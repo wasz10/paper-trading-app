@@ -68,11 +68,16 @@ export function AlertButton({ ticker, currentPrice }: AlertButtonProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-10 w-10">
-          <Bell className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+      <div className="group relative">
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon" className="h-10 w-10" aria-label="Set price alert">
+            <Bell className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md border opacity-0 group-hover:opacity-100 transition-opacity">
+          Set Price Alert
+        </span>
+      </div>
       <DialogContent className="sm:max-w-[360px]">
         <DialogHeader>
           <DialogTitle>Price Alert — {ticker}</DialogTitle>
