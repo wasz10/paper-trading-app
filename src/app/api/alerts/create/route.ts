@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     if (!['above', 'below'].includes(condition)) {
       return NextResponse.json({ error: 'Invalid condition' }, { status: 400 })
     }
-    if (!targetPriceCents || targetPriceCents <= 0) {
+    if (!targetPriceCents || typeof targetPriceCents !== 'number' || !Number.isFinite(targetPriceCents) || targetPriceCents <= 0 || targetPriceCents > 100_000_000) {
       return NextResponse.json({ error: 'Invalid target price' }, { status: 400 })
     }
 

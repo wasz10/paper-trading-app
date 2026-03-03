@@ -12,11 +12,15 @@ export async function POST(request: NextRequest) {
     const { ids } = await request.json()
 
     if (Array.isArray(ids) && ids.length > 0) {
-      // Mark specific notifications as read
+      // Mark specific notifications as read (capped at 100)
+      const validIds = ids.filter((id): id is string => typeof id === 'string').slice(0, 100)
+      if (validIds.length === 0) {
+        return NextResponse.json({ data: { ok: true } })
+      }
       await supabase
         .from('notifications')
         .update({ read: true })
-        .in('id', ids)
+        .in('id', validIds)
         .eq('user_id', user.id)
     } else {
       // Mark all as read

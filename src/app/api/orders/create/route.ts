@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate shares
-    if (!shares || typeof shares !== 'number' || shares <= 0) {
+    if (!shares || typeof shares !== 'number' || shares <= 0 || !Number.isFinite(shares) || shares > 9999.999999) {
       return NextResponse.json({ error: 'Invalid shares' }, { status: 400 })
     }
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const tif = timeInForce === 'day' ? 'day' : 'gtc'
 
     // Validate price fields based on order type
-    if ((orderType === 'limit_buy' || orderType === 'limit_sell' || orderType === 'stop_loss') && (!targetPriceCents || targetPriceCents <= 0)) {
+    if ((orderType === 'limit_buy' || orderType === 'limit_sell' || orderType === 'stop_loss') && (!targetPriceCents || typeof targetPriceCents !== 'number' || !Number.isFinite(targetPriceCents) || targetPriceCents <= 0 || targetPriceCents > 100_000_000)) {
       return NextResponse.json({ error: 'Target price required' }, { status: 400 })
     }
     if (orderType === 'trailing_stop' && !trailAmountCents && !trailPercent) {

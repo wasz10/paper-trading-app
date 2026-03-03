@@ -83,6 +83,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Challenge not completed' }, { status: 400 })
     }
 
+    // Record claim FIRST (unique constraint prevents double-claim)
+    const { error: claimErr } = await supabase.from('weekly_challenge_claims').insert({
+      user_id: user.id,
+      challenge_id: challengeId,
+      week_start: weekStart,
+      tokens_earned: challenge.reward,
+    })
+
+    if (claimErr) {
+      return NextResponse.json({ error: 'Already claimed this week' }, { status: 409 })
+    }
+
     // Award tokens with optimistic lock
     const { error: updateError } = await supabase
       .from('users')
@@ -91,16 +103,8 @@ export async function POST(request: NextRequest) {
       .eq('token_balance', profile.token_balance)
 
     if (updateError) {
-      return NextResponse.json({ error: 'Failed to award tokens' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to award tokens, please retry' }, { status: 500 })
     }
-
-    // Record claim
-    await supabase.from('weekly_challenge_claims').insert({
-      user_id: user.id,
-      challenge_id: challengeId,
-      week_start: weekStart,
-      tokens_earned: challenge.reward,
-    })
 
     // Record token transaction
     await supabase.from('token_transactions').insert({

@@ -103,14 +103,20 @@ export async function checkAndAwardAchievements(userId: string): Promise<string[
     // Skip if already exists (race condition)
     if (error) continue
 
-    // Award tokens
+    // Award tokens with optimistic lock to prevent race conditions
     const { data: profile } = await admin.from('users').select('token_balance').eq('id', userId).single()
     if (profile) {
-      await admin.from('users').update({ token_balance: profile.token_balance + ach.tokens }).eq('id', userId)
+      const { data: updated } = await admin
+        .from('users')
+        .update({ token_balance: profile.token_balance + ach.tokens })
+        .eq('id', userId)
+        .eq('token_balance', profile.token_balance)
+        .select('id')
+      if (!updated || updated.length === 0) continue // balance changed, skip
       await admin.from('token_transactions').insert({
         user_id: userId,
         amount: ach.tokens,
-        reason: 'weekly_challenge' as const, // reusing closest available reason
+        reason: 'daily_reward' as const,
         description: `Achievement: ${ach.name}`,
       })
     }

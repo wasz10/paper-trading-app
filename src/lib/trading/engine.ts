@@ -141,7 +141,8 @@ export async function executeSell(
   userId: string,
   ticker: string,
   sharesToSell: number,
-  currentPriceCents: number
+  currentPriceCents: number,
+  reservedShares: number = 0
 ): Promise<TradeResult> {
   const supabase = await createClient()
 
@@ -176,9 +177,10 @@ export async function executeSell(
   }
 
   const ownedShares = Number(holding.shares)
+  const availableShares = ownedShares - reservedShares
 
-  // Validate
-  const validation = validateSell(ownedShares, sharesToSell)
+  // Validate against available shares (total minus reserved for pending sell/stop orders)
+  const validation = validateSell(availableShares, sharesToSell)
   if (!validation.valid) {
     return { success: false, error: validation.error }
   }

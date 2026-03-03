@@ -16,6 +16,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid subscription' }, { status: 400 })
     }
 
+    // Validate endpoint is a proper HTTPS push service URL
+    try {
+      const url = new URL(endpoint)
+      if (url.protocol !== 'https:') {
+        return NextResponse.json({ error: 'Invalid subscription endpoint' }, { status: 400 })
+      }
+    } catch {
+      return NextResponse.json({ error: 'Invalid subscription endpoint' }, { status: 400 })
+    }
+
     // Upsert: if endpoint already exists, update the keys
     const { error } = await supabase
       .from('push_subscriptions')
