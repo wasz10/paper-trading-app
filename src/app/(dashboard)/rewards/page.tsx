@@ -23,7 +23,7 @@ export default function RewardsPage() {
   // Auto-complete "claim_reward" tutorial step when page is visited
   useTutorialStep('claim_reward')
 
-  const addTokens = useProfileStore((s) => s.addTokens)
+  const refetchBalance = useProfileStore((s) => s.refetchBalance)
   const [status, setStatus] = useState<RewardStatus | null>(null)
   const [challenges, setChallenges] = useState<ChallengeStatus[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -82,7 +82,7 @@ export default function RewardsPage() {
             )
           )
           setStatus({ ...status, tokenBalance: status.tokenBalance + tokens })
-          addTokens(tokens)
+          refetchBalance()
         }}
       />
 
@@ -97,7 +97,7 @@ export default function RewardsPage() {
             currentStreak: newStreak,
             canClaim: false,
           })
-          addTokens(tokens)
+          refetchBalance()
         }}
       />
     </div>

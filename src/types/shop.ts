@@ -8,6 +8,7 @@ export interface ShopItem {
   category: ShopCategory
   price: number  // tokens
   repeatable: boolean
+  requiresItemId?: string
 }
 
 export interface ShopItemWithOwnership extends ShopItem {

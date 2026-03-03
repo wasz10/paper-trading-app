@@ -9,11 +9,46 @@ import type { ShopItem, ShopItemWithOwnership } from '@/types/shop'
 interface ShopItemCardProps {
   item: ShopItemWithOwnership
   onPurchase: (item: ShopItem) => void
+  onApply?: (item: ShopItem) => void
   disabled?: boolean
+  activeTheme?: string | null
+  activeBadgeFrame?: string | null
 }
 
-export function ShopItemCard({ item, onPurchase, disabled }: ShopItemCardProps) {
-  const isDisabled = disabled || item.owned
+export function ShopItemCard({ item, onPurchase, onApply, disabled, activeTheme, activeBadgeFrame }: ShopItemCardProps) {
+  const isCosmeticCategory = item.category === 'theme' || item.category === 'badge'
+
+  // Determine if this cosmetic item is currently applied
+  let isApplied = false
+  if (item.owned && isCosmeticCategory) {
+    if (item.category === 'theme') {
+      // item.id is like "theme_midnight", activeTheme is like "midnight"
+      const themeShortName = item.id.replace('theme_', '')
+      isApplied = activeTheme === themeShortName
+    } else if (item.category === 'badge') {
+      isApplied = activeBadgeFrame === item.id
+    }
+  }
+
+  const isDisabled = disabled || (item.owned && !isCosmeticCategory) || isApplied
+
+  function handleClick() {
+    if (item.owned && isCosmeticCategory && onApply) {
+      onApply(item)
+    } else if (!item.owned) {
+      onPurchase(item)
+    }
+  }
+
+  function getButtonLabel() {
+    if (item.owned && isCosmeticCategory) {
+      return isApplied ? 'Applied' : 'Apply'
+    }
+    if (item.owned) {
+      return 'Owned'
+    }
+    return 'Buy'
+  }
 
   return (
     <Card className="relative overflow-hidden">
@@ -27,7 +62,9 @@ export function ShopItemCard({ item, onPurchase, disabled }: ShopItemCardProps) 
         </div>
         <div className="flex items-center gap-2">
           {item.owned ? (
-            <Badge variant="secondary">Owned</Badge>
+            <Badge variant={isApplied ? 'default' : 'secondary'}>
+              {isApplied ? 'Active' : 'Owned'}
+            </Badge>
           ) : (
             <Badge variant="outline" className="gap-1">
               <span aria-hidden="true">🪙</span> {item.price}
@@ -35,12 +72,13 @@ export function ShopItemCard({ item, onPurchase, disabled }: ShopItemCardProps) 
           )}
         </div>
         <Button
-          onClick={() => onPurchase(item)}
+          onClick={handleClick}
           disabled={isDisabled}
           className={cn('w-full min-h-[44px]')}
           size="sm"
+          variant={item.owned && isCosmeticCategory && !isApplied ? 'outline' : 'default'}
         >
-          {item.owned ? 'Owned' : 'Buy'}
+          {getButtonLabel()}
         </Button>
       </CardContent>
     </Card>

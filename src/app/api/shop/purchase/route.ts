@@ -42,6 +42,24 @@ export async function POST(request: Request) {
       }
     }
 
+    // Check upgrade prerequisites
+    if (item.requiresItemId) {
+      const { data: prerequisite } = await supabase
+        .from('user_purchases')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('item_id', item.requiresItemId)
+        .single()
+
+      if (!prerequisite) {
+        const prereqItem = SHOP_ITEMS.find(i => i.id === item.requiresItemId)
+        return NextResponse.json(
+          { error: `You need ${prereqItem?.name ?? 'the prerequisite item'} first` },
+          { status: 400 }
+        )
+      }
+    }
+
     // Check sufficient balance
     if (profile.token_balance < item.price) {
       return NextResponse.json({ error: 'Insufficient token balance' }, { status: 400 })

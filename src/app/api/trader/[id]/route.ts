@@ -25,7 +25,7 @@ export async function GET(
     // Fetch trader profile
     const { data: trader, error: traderError } = await admin
       .from('users')
-      .select('id, display_name, is_subscriber, show_display_name, current_streak, cash_balance, created_at')
+      .select('id, display_name, is_subscriber, show_display_name, current_streak, cash_balance, created_at, active_badge_frame')
       .eq('id', id)
       .single()
 
@@ -100,6 +100,7 @@ export async function GET(
       total_return_pct: totalReturnPct,
       trade_count: tradeCount,
       achievement_ids: achievementIds,
+      active_badge_frame: trader.active_badge_frame,
     }
 
     return NextResponse.json({ data: profile })

@@ -10,7 +10,11 @@ import { toast } from 'sonner'
 import type { ShopItem, ShopItemWithOwnership } from '@/types/shop'
 
 export default function ShopPage() {
-  const addTokens = useProfileStore((s) => s.addTokens)
+  const refetchBalance = useProfileStore((s) => s.refetchBalance)
+  const activeTheme = useProfileStore((s) => s.activeTheme)
+  const activeBadgeFrame = useProfileStore((s) => s.activeBadgeFrame)
+  const setActiveTheme = useProfileStore((s) => s.setActiveTheme)
+  const setActiveBadgeFrame = useProfileStore((s) => s.setActiveBadgeFrame)
   const [items, setItems] = useState<ShopItemWithOwnership[]>([])
   const [balance, setBalance] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -63,11 +67,10 @@ export default function ShopPage() {
 
       if (json.data?.success) {
         setBalance(json.data.newBalance)
-        addTokens(-selectedItem.price)
         setDialogOpen(false)
         setSelectedItem(null)
         toast.success(`Purchased ${selectedItem.name}!`)
-        // Refresh items to update ownership
+        await refetchBalance()
         await fetchItems()
       } else if (json.error) {
         toast.error(json.error)
@@ -76,6 +79,46 @@ export default function ShopPage() {
       toast.error('Purchase failed, please try again')
     } finally {
       setIsPurchasing(false)
+    }
+  }
+
+  const handleApplyItem = async (item: ShopItem) => {
+    if (item.category === 'theme') {
+      const themeId = item.id.replace('theme_', '')
+      try {
+        const res = await fetch('/api/profile/theme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ theme: themeId }),
+        })
+        const json = await res.json()
+        if (json.data?.success) {
+          setActiveTheme(themeId)
+          document.documentElement.setAttribute('data-theme', themeId)
+          toast.success(`Applied ${item.name}`)
+        } else if (json.error) {
+          toast.error(json.error)
+        }
+      } catch {
+        toast.error('Failed to apply theme')
+      }
+    } else if (item.category === 'badge') {
+      try {
+        const res = await fetch('/api/profile/badge-frame', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ badgeFrame: item.id }),
+        })
+        const json = await res.json()
+        if (json.data?.success) {
+          setActiveBadgeFrame(item.id)
+          toast.success(`Applied ${item.name}`)
+        } else if (json.error) {
+          toast.error(json.error)
+        }
+      } catch {
+        toast.error('Failed to apply badge frame')
+      }
     }
   }
 
@@ -119,7 +162,10 @@ export default function ShopPage() {
               key={item.id}
               item={item}
               onPurchase={handlePurchaseClick}
+              onApply={handleApplyItem}
               disabled={balance < item.price && !item.owned}
+              activeTheme={activeTheme}
+              activeBadgeFrame={activeBadgeFrame}
             />
           ))}
         </div>

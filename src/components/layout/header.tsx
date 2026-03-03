@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { FramedAvatar } from '@/components/ui/framed-avatar'
 import { Coins, LogOut } from 'lucide-react'
 import { signOut } from '@/lib/supabase/auth'
 import { useProfileStore } from '@/stores/profile-store'
@@ -13,6 +13,7 @@ export function Header() {
   const router = useRouter()
   const displayName = useProfileStore((s) => s.displayName)
   const tokenBalance = useProfileStore((s) => s.tokenBalance)
+  const activeBadgeFrame = useProfileStore((s) => s.activeBadgeFrame)
 
   async function handleLogout() {
     await signOut()
@@ -52,9 +53,7 @@ export function Header() {
           onClick={() => router.push('/settings')}
           className="group relative"
         >
-          <Avatar className="h-8 w-8 cursor-pointer">
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-          </Avatar>
+          <FramedAvatar initials={initials} badgeFrame={activeBadgeFrame} size="sm" />
           <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md border opacity-0 group-hover:opacity-100 transition-opacity">
             Profile &amp; Settings
           </span>
