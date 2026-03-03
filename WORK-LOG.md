@@ -544,6 +544,7 @@ Nothing currently in progress.
 
 ### Database
 - **Supabase project**: ref `xteeugmsfirnqiphjjtg`, URL `https://xteeugmsfirnqiphjjtg.supabase.co`
+- **Supabase access token**: `sbp_7d6bc8b4282aed6f31f38abaa51fa1be6bf92836` (for `supabase db push`)
 - **Tables**: users, holdings, trades, daily_rewards, token_transactions, leaderboard_cache, portfolio_snapshots, tutorial_progress, user_watchlists, user_purchases
 - **RLS**: enabled on all tables. Users read/write own data only. leaderboard_cache is public SELECT.
 - **Migrations**: `001_initial_schema.sql`, `002_architecture_additions.sql`, `003_portfolio_snapshots.sql`, `004_tutorial_progress.sql`, `010_user_watchlists.sql`, `011_token_shop.sql`
