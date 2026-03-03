@@ -7,6 +7,7 @@ import { Coins, LogOut } from 'lucide-react'
 import { signOut } from '@/lib/supabase/auth'
 import { useProfileStore } from '@/stores/profile-store'
 import { NotificationBell } from '@/components/notifications/notification-bell'
+import { AnimatedNumber } from '@/components/ui/animated-number'
 
 export function Header() {
   const router = useRouter()
@@ -40,7 +41,7 @@ export function Header() {
           className="group relative flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <Coins className="h-4 w-4 text-yellow-500" />
-          <span>{tokenBalance}</span>
+          <AnimatedNumber value={tokenBalance} format="integer" />
           <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md border opacity-0 group-hover:opacity-100 transition-opacity">
             Your Tokens — Earn more daily!
           </span>
