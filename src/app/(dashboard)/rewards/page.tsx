@@ -7,6 +7,7 @@ import { StreakDisplay } from '@/components/rewards/streak-display'
 import { DailyRewardModal } from '@/components/rewards/daily-reward-modal'
 import { TokenBalance } from '@/components/rewards/token-balance'
 import { WeeklyChallengeList } from '@/components/rewards/weekly-challenge'
+import type { ChallengeStatus } from '@/components/rewards/weekly-challenge'
 import { useTutorialStep } from '@/hooks/useTutorialStep'
 import { useProfileStore } from '@/stores/profile-store'
 
@@ -24,14 +25,18 @@ export default function RewardsPage() {
 
   const addTokens = useProfileStore((s) => s.addTokens)
   const [status, setStatus] = useState<RewardStatus | null>(null)
+  const [challenges, setChallenges] = useState<ChallengeStatus[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showClaimModal, setShowClaimModal] = useState(false)
 
   useEffect(() => {
-    fetch('/api/rewards/status')
-      .then((res) => res.json())
-      .then((json) => {
-        setStatus(json.data ?? null)
+    Promise.all([
+      fetch('/api/rewards/status').then((r) => r.json()),
+      fetch('/api/challenges/status').then((r) => r.json()),
+    ])
+      .then(([rewardJson, challengeJson]) => {
+        setStatus(rewardJson.data ?? null)
+        setChallenges(challengeJson.data?.challenges ?? [])
         setIsLoading(false)
       })
       .catch(() => setIsLoading(false))
@@ -42,6 +47,7 @@ export default function RewardsPage() {
       <div className="space-y-6">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-[100px] w-full" />
+        <Skeleton className="h-[200px] w-full" />
         <Skeleton className="h-[200px] w-full" />
       </div>
     )
@@ -67,7 +73,18 @@ export default function RewardsPage() {
         )}
       </div>
 
-      <WeeklyChallengeList completedIds={[]} />
+      <WeeklyChallengeList
+        challenges={challenges}
+        onClaimed={(challengeId, tokens) => {
+          setChallenges((prev) =>
+            prev.map((ch) =>
+              ch.id === challengeId ? { ...ch, claimed: true } : ch
+            )
+          )
+          setStatus({ ...status, tokenBalance: status.tokenBalance + tokens })
+          addTokens(tokens)
+        }}
+      />
 
       <DailyRewardModal
         open={showClaimModal}
