@@ -1,5 +1,5 @@
 # Work Log
-> Last updated: 2026-03-03 (Sprint 3 complete: watchlists, analytics, token shop, social profiles; code review fixes; deployed)
+> Last updated: 2026-03-03 (Sprint 3 Hotfix: tooltips, dev panel fix, RLS migration 012, PR #5 merged, deployed)
 
 ---
 
@@ -492,6 +492,68 @@ Automated code review via code-improver agent on all 45 Sprint 3 files. 6 critic
 
 ---
 
+### Sprint 3 Hotfix — Tooltips, Dev Panel Fix, RLS Policies (PR #5, 2026-03-03)
+Explored two issues (missing tooltips on stock page buttons, dev panel 500 errors), wrote spec + plan, implemented fixes, performed STRIDE security review, and merged via PR #5.
+
+#### Root Cause Analysis
+- **Dev panel 500 errors**: All 6 POST routes under `/api/dev/` used `createAdminClient()` which requires `SUPABASE_SERVICE_ROLE_KEY` — that key wasn't in the environment, causing all mutations to throw 500
+- **Missing tooltips**: WatchlistButton and AlertButton on stock detail page had no hover hints for users
+
+#### Spec & Plan
+- `plans/sprint-3-hotfix-spec.md`: Problem statement, root cause, proposed fixes
+- `plans/sprint-3-hotfix-plan.md`: Implementation plan with file-by-file changes
+
+#### Tooltips
+- `src/components/watchlist/watchlist-button.tsx`: Added CSS hover tooltip wrapper (dynamic: "Add to Watchlist" / "Remove from Watchlist" based on state)
+- `src/components/market/alert-button.tsx`: Added CSS hover tooltip wrapper (static: "Set Price Alert") + `aria-label` for accessibility
+- Used existing `.tooltip-wrapper` / `.tooltip-text` CSS pattern from `header.tsx`
+
+#### Dev Panel Fix
+- Switched all 6 POST routes from `createAdminClient()` to `createClient()` (RLS client):
+  - `src/app/api/dev/tokens/route.ts`
+  - `src/app/api/dev/cash/route.ts`
+  - `src/app/api/dev/streak/route.ts`
+  - `src/app/api/dev/reset/route.ts`
+  - `src/app/api/dev/snapshot/route.ts`
+  - `src/app/api/dev/tutorial/route.ts`
+- Added `user_watchlists` and `user_purchases` to the reset route's `tablesToClear` array
+
+#### STRIDE Security Review — RLS Migration 012
+- Found missing RLS DELETE/UPDATE policies on 8 tables
+- `supabase/migrations/012_add_missing_rls_policies.sql`: Added 7 DELETE + 1 UPDATE policy
+- Migration applied to Supabase via Management API (corporate proxy blocks direct Postgres)
+
+#### README Updated
+- Sprint 3 features documented
+- 16 tables (was 14)
+- 85 tests (was 67)
+- Updated project structure section
+
+#### Files Changed (12 total, +303/-49)
+- `src/components/watchlist/watchlist-button.tsx` — CSS tooltip wrapper
+- `src/components/market/alert-button.tsx` — CSS tooltip wrapper + aria-label
+- `src/app/api/dev/tokens/route.ts` — createAdminClient -> createClient
+- `src/app/api/dev/cash/route.ts` — createAdminClient -> createClient
+- `src/app/api/dev/streak/route.ts` — createAdminClient -> createClient
+- `src/app/api/dev/reset/route.ts` — createAdminClient -> createClient + new tables in reset
+- `src/app/api/dev/snapshot/route.ts` — createAdminClient -> createClient
+- `src/app/api/dev/tutorial/route.ts` — createAdminClient -> createClient
+- `supabase/migrations/012_add_missing_rls_policies.sql` — 7 DELETE + 1 UPDATE policy
+- `README.md` — Sprint 3 features, tables, tests, structure
+- `plans/sprint-3-hotfix-spec.md` — spec doc
+- `plans/sprint-3-hotfix-plan.md` — implementation plan
+
+#### Key Commits
+- `e399e3b` fix: add tooltips to stock page buttons, fix dev panel server errors
+- Merged via PR #5 as `65700f2`
+
+#### Build & Deploy
+- `npm run build`: 62 routes, 0 errors
+- `npx vitest run`: 85 tests pass, 0 regressions
+- Deployed to Vercel: https://paper-trading-app-delta.vercel.app
+
+---
+
 ## In Progress
 Nothing currently in progress.
 
@@ -500,7 +562,7 @@ Nothing currently in progress.
 ## Up Next
 - [ ] Add ANTHROPIC_API_KEY to Vercel env vars -- AI coach errors without it
 - [ ] Add CRON_SECRET env var to Vercel for daily snapshot cron
-- [ ] Add SUPABASE_SERVICE_ROLE_KEY env var to Vercel for cron admin client
+- [ ] Add SUPABASE_SERVICE_ROLE_KEY env var to Vercel for cron admin client and trader profile route
 - [ ] Configure Google OAuth in Supabase (needs Google client ID/secret)
 - [ ] Fix Vercel Git integration (auto-deploy not triggering on push — using manual `npx vercel --prod` as workaround)
 
@@ -509,7 +571,7 @@ Nothing currently in progress.
 ## Known Issues / Context
 
 ### Architecture
-- **62 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback, /watchlist, /analytics, /shop, /trader/[id]), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status, /api/watchlist, /api/watchlist/add, /api/watchlist/remove, /api/analytics, /api/shop/items, /api/shop/purchase, /api/trader/[id])
+- **62 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback, /watchlist, /analytics, /shop, /trader/[id]), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status, /api/watchlist, /api/watchlist/add, /api/watchlist/remove, /api/analytics, /api/shop/items, /api/shop/purchase, /api/trader/[id], /api/dev/tokens, /api/dev/cash, /api/dev/streak, /api/dev/reset, /api/dev/snapshot, /api/dev/tutorial)
 - **Layout**: Desktop = left sidebar (w-64) + header + main. Mobile = bottom nav (h-16) + header + full-width. Both share 5 nav items: Dashboard, Explore, Rewards, Leaderboard, Settings.
 - **Dashboard layout**: `src/app/(dashboard)/layout.tsx` is a server component that does auth check + profile fetch.
 - **State management**: Zustand stores for portfolio, trade, and profile state (token balance, display name); server components fetch directly from Supabase. Profile store hydrated via `<ProfileInitializer>` bridge component in dashboard layout.
@@ -541,17 +603,20 @@ Nothing currently in progress.
 - Sprint 3 code review fixes (commit e781840) deployed. 10 issues fixed: purchase race condition token refund, boost_cash optimistic lock, perk_trades stale value, watchlist remove validation, analytics O(n²) indexOf, AbortController in watchlist components, analytics query LIMIT, shop error toasts, chart formatting.
 - `bonus_trades_today` column has no daily reset mechanism — needs companion `bonus_trades_date` column and reset logic in the trade validation flow.
 - achievements.ts uses `'daily_reward'` as TokenReason for achievement token grants — should be a new `'achievement'` enum value (requires DB migration).
+- **Dev panel fixed** (PR #5): All 6 `/api/dev/*` POST routes switched from `createAdminClient()` to `createClient()` (RLS). No longer requires `SUPABASE_SERVICE_ROLE_KEY` for dev operations — only cron and trader profile routes still need the service role key.
+- **RLS migration 012** (PR #5): Added 7 DELETE + 1 UPDATE policies across 8 tables. Full STRIDE security coverage now in place.
+- **Tooltips** (PR #5): WatchlistButton and AlertButton on stock detail page now have CSS hover tooltips matching the header.tsx pattern.
 
 ### Database
 - **Supabase project**: ref `xteeugmsfirnqiphjjtg`, URL `https://xteeugmsfirnqiphjjtg.supabase.co`
 - **Supabase access token**: `sbp_7d6bc8b4282aed6f31f38abaa51fa1be6bf92836` (for `supabase db push`)
-- **Tables**: users, holdings, trades, daily_rewards, token_transactions, leaderboard_cache, portfolio_snapshots, tutorial_progress, user_watchlists, user_purchases
-- **RLS**: enabled on all tables. Users read/write own data only. leaderboard_cache is public SELECT.
-- **Migrations**: `001_initial_schema.sql`, `002_architecture_additions.sql`, `003_portfolio_snapshots.sql`, `004_tutorial_progress.sql`, `010_user_watchlists.sql`, `011_token_shop.sql`
+- **Tables (16)**: users, holdings, trades, daily_rewards, token_transactions, leaderboard_cache, portfolio_snapshots, tutorial_progress, user_watchlists, user_purchases, plus 6 system/auth tables
+- **RLS**: enabled on all tables. Users read/write own data only. leaderboard_cache is public SELECT. Full DELETE/UPDATE coverage added in migration 012.
+- **Migrations (12)**: `001_initial_schema.sql`, `002_architecture_additions.sql`, `003_portfolio_snapshots.sql`, `004_tutorial_progress.sql`, `010_user_watchlists.sql`, `011_token_shop.sql`, `012_add_missing_rls_policies.sql`
 
 ### Git
 - **Branch**: master, build + lint clean (0 errors, 0 warnings)
-- **Latest commit**: e781840 on master
+- **Latest commit**: 65700f2 on master (PR #5 merge: fix/sprint-3-hotfix-tooltips-devpanel)
 - **GitHub**: https://github.com/wasz10/paper-trading-app
 
 ### Workflow
@@ -656,6 +721,17 @@ Nothing currently in progress.
 | `src/components/leaderboard/leaderboard-row.tsx` | modified | **f9a161d**: Wrapped in Link when user_id present |
 | `src/components/layout/sidebar.tsx` | modified | **f9a161d**: Added Watchlist, Analytics, Shop to NAV_ITEMS |
 | `src/components/layout/bottom-nav.tsx` | modified | **f9a161d**: Added Watchlist, Analytics, Shop to MORE_ITEMS |
+| `src/components/watchlist/watchlist-button.tsx` | modified | **e399e3b**: CSS tooltip wrapper ("Add/Remove from Watchlist") |
+| `src/components/market/alert-button.tsx` | modified | **e399e3b**: CSS tooltip wrapper ("Set Price Alert") + aria-label |
+| `src/app/api/dev/tokens/route.ts` | modified | **e399e3b**: createAdminClient -> createClient |
+| `src/app/api/dev/cash/route.ts` | modified | **e399e3b**: createAdminClient -> createClient |
+| `src/app/api/dev/streak/route.ts` | modified | **e399e3b**: createAdminClient -> createClient |
+| `src/app/api/dev/reset/route.ts` | modified | **e399e3b**: createAdminClient -> createClient + user_watchlists/user_purchases in reset |
+| `src/app/api/dev/snapshot/route.ts` | modified | **e399e3b**: createAdminClient -> createClient |
+| `src/app/api/dev/tutorial/route.ts` | modified | **e399e3b**: createAdminClient -> createClient |
+| `supabase/migrations/012_add_missing_rls_policies.sql` | created | **e399e3b**: 7 DELETE + 1 UPDATE RLS policy across 8 tables |
+| `plans/sprint-3-hotfix-spec.md` | created | **e399e3b**: Hotfix spec document |
+| `plans/sprint-3-hotfix-plan.md` | created | **e399e3b**: Hotfix implementation plan |
 | `src/app/(dashboard)/watchlist/page.tsx` | created | **f9a161d**: Watchlist page with slot counter badge |
 | `src/app/(dashboard)/watchlist/loading.tsx` | created | **f9a161d**: Skeleton loading |
 | `src/app/(dashboard)/analytics/page.tsx` | created | **f9a161d**: Analytics page with loading/error/empty states |
