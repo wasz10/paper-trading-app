@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { BottomNav } from '@/components/layout/bottom-nav'
 import { Header } from '@/components/layout/header'
 import { ProfileInitializer } from '@/components/layout/profile-initializer'
+import { PushPrompt } from '@/components/notifications/push-prompt'
 
 export default async function DashboardLayout({
   children,
@@ -36,6 +37,7 @@ export default async function DashboardLayout({
       <Sidebar />
       <div className="md:pl-64">
         <Header />
+        <PushPrompt />
         <main className="p-4 md:p-6 pb-20 md:pb-6">{children}</main>
       </div>
       <BottomNav />
