@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { checkDevAccess } from '@/lib/dev-guard'
 
 export async function POST() {
@@ -7,10 +7,12 @@ export async function POST() {
   if (!access.allowed) return access.response
 
   try {
-    const admin = createAdminClient()
+    const supabase = await createClient()
 
-    // Delete from dependent tables
+    // Delete from dependent tables (includes Sprint 3 tables)
     const tablesToClear = [
+      'user_watchlists',
+      'user_purchases',
       'tutorial_progress',
       'token_transactions',
       'daily_rewards',
@@ -21,11 +23,11 @@ export async function POST() {
     ]
 
     for (const table of tablesToClear) {
-      await admin.from(table).delete().eq('user_id', access.userId)
+      await supabase.from(table).delete().eq('user_id', access.userId)
     }
 
     // Reset user to defaults
-    await admin
+    await supabase
       .from('users')
       .update({
         cash_balance: 1_000_000,

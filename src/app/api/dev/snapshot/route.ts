@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { getQuote } from '@/lib/market/yahoo'
 import { checkDevAccess } from '@/lib/dev-guard'
 
@@ -8,10 +8,10 @@ export async function POST() {
   if (!access.allowed) return access.response
 
   try {
-    const admin = createAdminClient()
+    const supabase = await createClient()
 
     // Fetch user cash balance
-    const { data: profile } = await admin
+    const { data: profile } = await supabase
       .from('users')
       .select('cash_balance')
       .eq('id', access.userId)
@@ -22,7 +22,7 @@ export async function POST() {
     }
 
     // Fetch holdings
-    const { data: holdings } = await admin
+    const { data: holdings } = await supabase
       .from('holdings')
       .select('ticker, shares')
       .eq('user_id', access.userId)
@@ -51,7 +51,7 @@ export async function POST() {
       snapshot_date: today,
     }
 
-    const { error } = await admin
+    const { error } = await supabase
       .from('portfolio_snapshots')
       .upsert(snapshot, { onConflict: 'user_id,snapshot_date' })
 

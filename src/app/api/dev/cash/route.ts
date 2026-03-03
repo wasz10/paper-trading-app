@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { checkDevAccess } from '@/lib/dev-guard'
 
 const MAX_CASH_CENTS = 100_000_000 // $1,000,000
@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Invalid balance (0-${MAX_CASH_CENTS})` }, { status: 400 })
     }
 
-    const admin = createAdminClient()
-    const { error } = await admin
+    const supabase = await createClient()
+    const { error } = await supabase
       .from('users')
       .update({ cash_balance: balanceCents })
       .eq('id', access.userId)
