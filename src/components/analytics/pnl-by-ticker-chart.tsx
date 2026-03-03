@@ -48,7 +48,7 @@ export function PnLByTickerChart({ data }: PnLByTickerChartProps) {
             <XAxis
               type="number"
               tick={{ fontSize: 11 }}
-              tickFormatter={(v: number) => `$${v}`}
+              tickFormatter={(v: number) => `$${v.toFixed(0)}`}
             />
             <YAxis
               type="category"

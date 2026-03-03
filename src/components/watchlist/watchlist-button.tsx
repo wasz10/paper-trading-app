@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Star } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,20 +15,20 @@ export function WatchlistButton({ ticker }: WatchlistButtonProps) {
   const [isInWatchlist, setIsInWatchlist] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  const checkWatchlist = useCallback(() => {
-    fetch('/api/watchlist')
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/watchlist', { signal: controller.signal })
       .then((res) => res.json())
       .then((json) => {
         const items: WatchlistItem[] = json.data ?? []
         setIsInWatchlist(items.some((item) => item.ticker === ticker))
         setIsLoading(false)
       })
-      .catch(() => setIsLoading(false))
+      .catch((err) => {
+        if (err.name !== 'AbortError') setIsLoading(false)
+      })
+    return () => controller.abort()
   }, [ticker])
-
-  useEffect(() => {
-    checkWatchlist()
-  }, [checkWatchlist])
 
   async function toggleWatchlist() {
     const wasInWatchlist = isInWatchlist

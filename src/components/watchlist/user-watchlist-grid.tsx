@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useReducer, useRef } from 'react'
+import { useEffect, useReducer } from 'react'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StockCard } from '@/components/market/stock-card'
@@ -27,22 +27,18 @@ function reducer(state: State, action: Action): State {
 
 export function UserWatchlistGrid() {
   const [state, dispatch] = useReducer(reducer, { quotes: [], isLoading: true })
-  const isMounted = useRef(true)
 
   useEffect(() => {
-    return () => { isMounted.current = false }
-  }, [])
-
-  useEffect(() => {
+    const controller = new AbortController()
     dispatch({ type: 'FETCH_START' })
 
-    fetch('/api/watchlist')
+    fetch('/api/watchlist', { signal: controller.signal })
       .then((res) => res.json())
       .then(async (json) => {
         const items: WatchlistItem[] = json.data ?? []
 
         if (items.length === 0) {
-          if (isMounted.current) {
+          if (!controller.signal.aborted) {
             dispatch({ type: 'FETCH_DONE', quotes: [] })
           }
           return
@@ -51,7 +47,7 @@ export function UserWatchlistGrid() {
         const results = await Promise.all(
           items.map(async (item) => {
             try {
-              const res = await fetch(`/api/market/quote/${item.ticker}`)
+              const res = await fetch(`/api/market/quote/${item.ticker}`, { signal: controller.signal })
               const quoteJson = await res.json()
               return quoteJson.data as StockQuote | null
             } catch {
@@ -60,18 +56,20 @@ export function UserWatchlistGrid() {
           })
         )
 
-        if (isMounted.current) {
+        if (!controller.signal.aborted) {
           dispatch({
             type: 'FETCH_DONE',
             quotes: results.filter((q): q is StockQuote => q !== null),
           })
         }
       })
-      .catch(() => {
-        if (isMounted.current) {
+      .catch((err) => {
+        if (err.name !== 'AbortError' && !controller.signal.aborted) {
           dispatch({ type: 'FETCH_DONE', quotes: [] })
         }
       })
+
+    return () => controller.abort()
   }, [])
 
   if (state.isLoading) {

@@ -64,13 +64,18 @@ export async function POST(request: Request) {
 
     // Insert purchase record for non-repeatable items
     if (!item.repeatable) {
-      try {
-        await supabase.from('user_purchases').insert({
-          user_id: user.id,
-          item_id: itemId,
-        })
-      } catch {
-        // Unique constraint violation — already purchased by concurrent request
+      const { error: purchaseError } = await supabase.from('user_purchases').insert({
+        user_id: user.id,
+        item_id: itemId,
+      })
+
+      if (purchaseError) {
+        // Unique constraint = concurrent purchase; refund tokens
+        await supabase
+          .from('users')
+          .update({ token_balance: profile.token_balance })
+          .eq('id', user.id)
+        return NextResponse.json({ error: 'Item already owned' }, { status: 400 })
       }
     }
 
@@ -79,14 +84,19 @@ export async function POST(request: Request) {
       ? 'cosmetic' as const
       : 'extra_trade' as const
 
-    await supabase.from('token_transactions').insert({
+    const { error: txError } = await supabase.from('token_transactions').insert({
       user_id: user.id,
       amount: -item.price,
       reason,
       description: `Purchased ${item.name}`,
     })
 
-    // Apply item effects
+    if (txError) {
+      // Log but don't fail — tokens already deducted, purchase recorded
+      console.error('Failed to insert token transaction:', txError)
+    }
+
+    // Apply item effects — use optimistic lock on cash_balance for boost
     if (item.category === 'theme') {
       await supabase
         .from('users')
@@ -98,15 +108,39 @@ export async function POST(request: Request) {
         .update({ active_badge_frame: itemId })
         .eq('id', user.id)
     } else if (item.id === 'boost_cash') {
-      // Add $500 (50000 cents) to cash balance
-      await supabase
+      // Add $500 (50000 cents) with optimistic lock on cash_balance
+      const { data: cashUpdated } = await supabase
         .from('users')
         .update({ cash_balance: profile.cash_balance + 50000 })
         .eq('id', user.id)
+        .eq('cash_balance', profile.cash_balance)
+        .select('id')
+
+      if (!cashUpdated || cashUpdated.length === 0) {
+        // Cash changed concurrently — re-fetch and retry once
+        const { data: freshProfile } = await supabase
+          .from('users')
+          .select('cash_balance')
+          .eq('id', user.id)
+          .single()
+        if (freshProfile) {
+          await supabase
+            .from('users')
+            .update({ cash_balance: freshProfile.cash_balance + 50000 })
+            .eq('id', user.id)
+        }
+      }
     } else if (item.id === 'perk_trades') {
+      // Re-fetch to avoid stale bonus_trades_today
+      const { data: freshProfile } = await supabase
+        .from('users')
+        .select('bonus_trades_today')
+        .eq('id', user.id)
+        .single()
+      const currentBonus = freshProfile?.bonus_trades_today ?? 0
       await supabase
         .from('users')
-        .update({ bonus_trades_today: profile.bonus_trades_today + 2 })
+        .update({ bonus_trades_today: currentBonus + 2 })
         .eq('id', user.id)
     }
 

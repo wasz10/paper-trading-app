@@ -6,6 +6,7 @@ import { ShopItemCard } from '@/components/shop/shop-item-card'
 import { ShopCategoryTabs } from '@/components/shop/shop-category-tabs'
 import { PurchaseDialog } from '@/components/shop/purchase-dialog'
 import { useProfileStore } from '@/stores/profile-store'
+import { toast } from 'sonner'
 import type { ShopItem, ShopItemWithOwnership } from '@/types/shop'
 
 export default function ShopPage() {
@@ -25,9 +26,11 @@ export default function ShopPage() {
       if (json.data) {
         setItems(json.data)
         setBalance(json.balance)
+      } else if (json.error) {
+        toast.error(json.error)
       }
     } catch {
-      // silently fail
+      toast.error('Failed to load shop items')
     } finally {
       setIsLoading(false)
     }
@@ -63,11 +66,14 @@ export default function ShopPage() {
         addTokens(-selectedItem.price)
         setDialogOpen(false)
         setSelectedItem(null)
+        toast.success(`Purchased ${selectedItem.name}!`)
         // Refresh items to update ownership
         await fetchItems()
+      } else if (json.error) {
+        toast.error(json.error)
       }
     } catch {
-      // silently fail
+      toast.error('Purchase failed, please try again')
     } finally {
       setIsPurchasing(false)
     }

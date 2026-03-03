@@ -24,12 +24,14 @@ function avgBuyCost(trades: Trade[], ticker: string, beforeIndex: number): numbe
  * Returns 0 if there are no sell trades.
  */
 export function computeWinRate(trades: Trade[]): number {
-  const sells = trades.filter((t) => t.type === 'sell')
+  const sells: Array<{ trade: Trade; index: number }> = []
+  for (let i = 0; i < trades.length; i++) {
+    if (trades[i].type === 'sell') sells.push({ trade: trades[i], index: i })
+  }
   if (sells.length === 0) return 0
 
   let wins = 0
-  for (const sell of sells) {
-    const sellIndex = trades.indexOf(sell)
+  for (const { trade: sell, index: sellIndex } of sells) {
     const avg = avgBuyCost(trades, sell.ticker, sellIndex)
     if (avg > 0 && sell.price_cents > avg) {
       wins++
@@ -46,14 +48,16 @@ export function computeBestWorstTrades(trades: Trade[]): {
   best: TradeHighlight | null
   worst: TradeHighlight | null
 } {
-  const sells = trades.filter((t) => t.type === 'sell')
+  const sells: Array<{ trade: Trade; index: number }> = []
+  for (let i = 0; i < trades.length; i++) {
+    if (trades[i].type === 'sell') sells.push({ trade: trades[i], index: i })
+  }
   if (sells.length === 0) return { best: null, worst: null }
 
   let best: TradeHighlight | null = null
   let worst: TradeHighlight | null = null
 
-  for (const sell of sells) {
-    const sellIndex = trades.indexOf(sell)
+  for (const { trade: sell, index: sellIndex } of sells) {
     const avg = avgBuyCost(trades, sell.ticker, sellIndex)
     if (avg === 0) continue
 
@@ -155,14 +159,16 @@ export function computeAvgGainLoss(trades: Trade[]): {
   avgGain: number
   avgLoss: number
 } {
-  const sells = trades.filter((t) => t.type === 'sell')
+  const sells: Array<{ trade: Trade; index: number }> = []
+  for (let i = 0; i < trades.length; i++) {
+    if (trades[i].type === 'sell') sells.push({ trade: trades[i], index: i })
+  }
   if (sells.length === 0) return { avgGain: 0, avgLoss: 0 }
 
   const gains: number[] = []
   const losses: number[] = []
 
-  for (const sell of sells) {
-    const sellIndex = trades.indexOf(sell)
+  for (const { trade: sell, index: sellIndex } of sells) {
     const avg = avgBuyCost(trades, sell.ticker, sellIndex)
     if (avg === 0) continue
 

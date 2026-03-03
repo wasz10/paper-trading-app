@@ -22,12 +22,14 @@ export async function GET() {
         .from('trades')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true }),
+        .order('created_at', { ascending: true })
+        .limit(5000),
       supabase
         .from('portfolio_snapshots')
         .select('*')
         .eq('user_id', user.id)
-        .order('snapshot_date', { ascending: true }),
+        .order('snapshot_date', { ascending: true })
+        .limit(1000),
     ])
 
     const trades = tradesRes.data ?? []

@@ -19,8 +19,10 @@ interface MonthlyReturnsChartProps {
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function formatMonth(yyyyMm: string): string {
-  const monthIndex = parseInt(yyyyMm.split('-')[1], 10) - 1
-  return MONTH_LABELS[monthIndex] ?? yyyyMm
+  const [year, month] = yyyyMm.split('-')
+  const monthIndex = parseInt(month, 10) - 1
+  const label = MONTH_LABELS[monthIndex] ?? yyyyMm
+  return `${label} '${year.slice(2)}`
 }
 
 export function MonthlyReturnsChart({ data }: MonthlyReturnsChartProps) {
