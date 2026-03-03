@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Coins, LogOut } from 'lucide-react'
 import { signOut } from '@/lib/supabase/auth'
 import { useProfileStore } from '@/stores/profile-store'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 
 export function Header() {
   const router = useRouter()
@@ -30,6 +31,9 @@ export function Header() {
       <div className="hidden md:block text-lg font-semibold">Dashboard</div>
 
       <div className="flex items-center gap-3">
+        {/* Notifications */}
+        <NotificationBell />
+
         {/* Token balance — click to go to rewards */}
         <button
           onClick={() => router.push('/rewards')}

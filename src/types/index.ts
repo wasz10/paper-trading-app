@@ -168,6 +168,34 @@ export interface PendingOrder {
   expires_at: string | null
 }
 
+// ── Price Alert ──────────────────────────────────────────────────────
+export type AlertCondition = 'above' | 'below'
+export type AlertStatus = 'active' | 'triggered' | 'cancelled'
+
+export interface PriceAlert {
+  id: string
+  user_id: string
+  ticker: string
+  condition: AlertCondition
+  target_price_cents: number
+  status: AlertStatus
+  triggered_at: string | null
+  triggered_price_cents: number | null
+  created_at: string
+}
+
+// ── Notification ─────────────────────────────────────────────────────
+export interface AppNotification {
+  id: string
+  user_id: string
+  type: string
+  title: string
+  body: string
+  url: string | null
+  read: boolean
+  created_at: string
+}
+
 // ── API Response ─────────────────────────────────────────────────────
 export interface ApiResponse<T> {
   data?: T
