@@ -25,7 +25,13 @@ export async function POST(request: Request) {
     }
 
     const quote = await getQuote(ticker.toUpperCase())
-    const result = await executeBuy(user.id, ticker.toUpperCase(), dollarAmount, quote.priceCents)
+
+    // Check available cash (total minus reserved)
+    const supabaseCheck = await createClient()
+    const { data: profile } = await supabaseCheck.from('users').select('reserved_cash').eq('id', user.id).single()
+    const reservedCash = profile?.reserved_cash ?? 0
+
+    const result = await executeBuy(user.id, ticker.toUpperCase(), dollarAmount, quote.priceCents, reservedCash)
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 })

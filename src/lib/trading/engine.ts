@@ -17,7 +17,8 @@ export async function executeBuy(
   userId: string,
   ticker: string,
   dollarAmountCents: number,
-  currentPriceCents: number
+  currentPriceCents: number,
+  reservedCash: number = 0
 ): Promise<TradeResult> {
   const supabase = await createClient()
 
@@ -43,8 +44,9 @@ export async function executeBuy(
   const shares = calculateShares(dollarAmountCents, currentPriceCents)
   const totalCents = Math.round(shares * currentPriceCents)
 
-  // Validate
-  const validation = validateBuy(user.cash_balance, totalCents, tradesToday, user.is_subscriber)
+  // Validate — use available cash (total minus reserved for pending orders)
+  const availableCash = user.cash_balance - reservedCash
+  const validation = validateBuy(availableCash, totalCents, tradesToday, user.is_subscriber)
   if (!validation.valid) {
     return { success: false, error: validation.error }
   }

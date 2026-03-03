@@ -143,6 +143,31 @@ export interface PortfolioSummary {
   holdings: HoldingWithQuote[]
 }
 
+// ── Pending Order ────────────────────────────────────────────────────
+export type PendingOrderType = 'limit_buy' | 'limit_sell' | 'stop_loss' | 'trailing_stop'
+export type OrderStatus = 'pending' | 'filled' | 'cancelled' | 'expired'
+export type TimeInForce = 'gtc' | 'day'
+
+export interface PendingOrder {
+  id: string
+  user_id: string
+  ticker: string
+  order_type: PendingOrderType
+  time_in_force: TimeInForce
+  target_price_cents: number | null
+  trail_amount_cents: number | null
+  trail_percent: number | null
+  high_water_mark_cents: number | null
+  shares: number
+  reserved_cash_cents: number
+  status: OrderStatus
+  filled_price_cents: number | null
+  filled_at: string | null
+  trade_id: string | null
+  created_at: string
+  expires_at: string | null
+}
+
 // ── API Response ─────────────────────────────────────────────────────
 export interface ApiResponse<T> {
   data?: T
