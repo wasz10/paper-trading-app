@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LayoutDashboard, Search, ListOrdered, Gift, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
-import { Trophy, Settings } from 'lucide-react'
+import { Trophy, Award, Settings } from 'lucide-react'
 
 const MAIN_NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -15,6 +15,7 @@ const MAIN_NAV = [
 ]
 
 const MORE_ITEMS = [
+  { href: '/achievements', label: 'Achievements', icon: Award },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getDayOrderExpiry } from '@/lib/trading/order-engine'
+import { checkAndAwardAchievements } from '@/lib/game/achievements'
 
 const TICKER_REGEX = /^[A-Z0-9.\-]{1,10}$/
 const VALID_ORDER_TYPES = ['limit_buy', 'limit_sell', 'stop_loss', 'trailing_stop'] as const
@@ -140,6 +141,9 @@ export async function POST(request: NextRequest) {
     if (insertErr || !order) {
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
     }
+
+    // Fire-and-forget achievement check
+    checkAndAwardAchievements(user.id).catch(() => {})
 
     return NextResponse.json({ data: order })
   } catch {

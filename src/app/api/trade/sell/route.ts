@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { executeSell } from '@/lib/trading/engine'
 import { getQuote } from '@/lib/market/yahoo'
+import { checkAndAwardAchievements } from '@/lib/game/achievements'
 
 export async function POST(request: Request) {
   try {
@@ -30,6 +31,9 @@ export async function POST(request: Request) {
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
+
+    // Fire-and-forget achievement check
+    checkAndAwardAchievements(user.id).catch(() => {})
 
     return NextResponse.json({ data: result.trade })
   } catch {
