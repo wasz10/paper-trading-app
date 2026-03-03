@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { FramedAvatar } from '@/components/ui/framed-avatar'
 import { useProfileStore } from '@/stores/profile-store'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import type { ShopItemWithOwnership } from '@/types/shop'
 
 export function BadgeFramePicker() {
@@ -47,12 +48,19 @@ export function BadgeFramePicker() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ badgeFrame: badgeFrameId }),
       })
+      if (!res.ok) {
+        toast.error('Failed to update badge frame')
+        return
+      }
       const json = await res.json()
       if (json.data?.success) {
         setActiveBadgeFrame(badgeFrameId)
+        toast.success('Badge frame updated')
+      } else if (json.error) {
+        toast.error(json.error)
       }
     } catch {
-      // Silently fail
+      toast.error('Failed to update badge frame')
     } finally {
       setApplying(false)
     }

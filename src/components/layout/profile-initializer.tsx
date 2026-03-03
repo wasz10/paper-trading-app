@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useProfileStore } from '@/stores/profile-store'
 
 interface ProfileInitializerProps {
@@ -17,14 +17,11 @@ export function ProfileInitializer({
   activeBadgeFrame,
 }: ProfileInitializerProps) {
   const initProfile = useProfileStore((s) => s.initProfile)
-  const initialized = useRef(false)
 
   useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true
-      initProfile({ displayName, tokenBalance, activeTheme, activeBadgeFrame })
-    }
-  }, [displayName, tokenBalance, activeTheme, activeBadgeFrame, initProfile])
+    initProfile({ displayName, tokenBalance, activeTheme, activeBadgeFrame })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Apply theme data attribute to document
   useEffect(() => {

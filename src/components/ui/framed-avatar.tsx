@@ -1,6 +1,3 @@
-'use client'
-
-import { useEffect } from 'react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { GoldCrown, DiamondSparkle, FireFlame } from '@/components/ui/badge-frame-svgs'
 import { cn } from '@/lib/utils'
@@ -29,36 +26,6 @@ const svgOverlaySizes = {
   md: 'w-4 h-4',
   lg: 'w-5 h-5',
 } as const
-
-const BADGE_FRAME_STYLES_ID = 'badge-frame-keyframes'
-
-const badgeFrameKeyframes = `
-@keyframes badge-shimmer {
-  0%, 100% {
-    box-shadow: 0 0 4px 1px rgba(103, 232, 249, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 12px 3px rgba(103, 232, 249, 0.8);
-  }
-}
-@keyframes badge-flicker {
-  0%, 100% {
-    box-shadow: 0 0 4px 1px rgba(249, 115, 22, 0.4);
-  }
-  33% {
-    box-shadow: 0 0 10px 3px rgba(249, 115, 22, 0.8);
-  }
-  66% {
-    box-shadow: 0 0 6px 2px rgba(249, 115, 22, 0.6);
-  }
-}
-.badge-frame-shimmer {
-  animation: badge-shimmer 2s ease-in-out infinite;
-}
-.badge-frame-flicker {
-  animation: badge-flicker 1.5s ease-in-out infinite;
-}
-`
 
 function getRingClasses(badgeFrame: string | null | undefined): string {
   if (!badgeFrame) return ''
@@ -115,15 +82,6 @@ function getSvgOverlay(badgeFrame: string | null | undefined, size: 'sm' | 'md' 
 export function FramedAvatar({ initials, badgeFrame, size = 'md', className }: FramedAvatarProps) {
   const ringClasses = getRingClasses(badgeFrame)
   const svgOverlay = getSvgOverlay(badgeFrame, size)
-
-  // Inject keyframe styles once into the document head
-  useEffect(() => {
-    if (document.getElementById(BADGE_FRAME_STYLES_ID)) return
-    const style = document.createElement('style')
-    style.id = BADGE_FRAME_STYLES_ID
-    style.textContent = badgeFrameKeyframes
-    document.head.appendChild(style)
-  }, [])
 
   return (
     <div className={cn('relative inline-flex', className)}>

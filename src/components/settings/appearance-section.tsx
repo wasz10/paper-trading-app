@@ -40,6 +40,7 @@ export function AppearanceSection() {
     async function fetchOwnedThemes() {
       try {
         const res = await fetch('/api/shop/items')
+        if (!res.ok) throw new Error('Failed to load themes')
         const json = await res.json()
         if (json.data) {
           const themes: OwnedTheme[] = json.data
@@ -72,6 +73,9 @@ export function AppearanceSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ theme: shortName }),
       })
+      if (!res.ok) {
+        throw new Error('Failed to change theme')
+      }
       const json = await res.json()
 
       if (json.data?.success) {

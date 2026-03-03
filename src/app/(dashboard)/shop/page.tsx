@@ -26,6 +26,7 @@ export default function ShopPage() {
   const fetchItems = useCallback(async () => {
     try {
       const res = await fetch('/api/shop/items')
+      if (!res.ok) throw new Error('Failed to load shop items')
       const json = await res.json()
       if (json.data) {
         setItems(json.data)

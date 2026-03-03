@@ -11,7 +11,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { badgeFrame } = await request.json() as { badgeFrame: string | null }
+    const body = await request.json()
+    const badgeFrame: unknown = body?.badgeFrame
+    if (badgeFrame !== null && typeof badgeFrame !== 'string') {
+      return NextResponse.json({ error: 'Invalid badge frame value' }, { status: 400 })
+    }
 
     // null means remove badge frame
     if (badgeFrame !== null) {

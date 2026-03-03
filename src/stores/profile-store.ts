@@ -34,6 +34,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   refetchBalance: async () => {
     try {
       const res = await fetch('/api/profile/balance')
+      if (!res.ok) return
       const json = await res.json()
       if (json.data) {
         set({ tokenBalance: json.data.tokenBalance })

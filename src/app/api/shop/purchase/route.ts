@@ -11,7 +11,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { itemId } = await request.json()
+    const body = await request.json()
+    const itemId = typeof body?.itemId === 'string' ? body.itemId : null
+    if (!itemId) {
+      return NextResponse.json({ error: 'Invalid item ID' }, { status: 400 })
+    }
 
     const item = SHOP_ITEMS.find((i) => i.id === itemId)
     if (!item) {
@@ -88,11 +92,19 @@ export async function POST(request: Request) {
       })
 
       if (purchaseError) {
-        // Unique constraint = concurrent purchase; refund tokens
-        await supabase
+        // Unique constraint = concurrent purchase; refund tokens using fresh balance
+        const { data: freshProfile } = await supabase
           .from('users')
-          .update({ token_balance: profile.token_balance })
+          .select('token_balance')
           .eq('id', user.id)
+          .single()
+        if (freshProfile) {
+          await supabase
+            .from('users')
+            .update({ token_balance: freshProfile.token_balance + item.price })
+            .eq('id', user.id)
+            .eq('token_balance', freshProfile.token_balance)
+        }
         return NextResponse.json({ error: 'Item already owned' }, { status: 400 })
       }
     }

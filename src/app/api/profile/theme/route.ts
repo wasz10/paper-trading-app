@@ -13,7 +13,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { theme } = body as { theme: string | null }
+    const theme: unknown = body?.theme
+    if (theme !== null && typeof theme !== 'string') {
+      return NextResponse.json({ error: 'Invalid theme value' }, { status: 400 })
+    }
 
     // Null means reset to Classic (no custom theme)
     if (theme === null) {
