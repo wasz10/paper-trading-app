@@ -133,6 +133,7 @@ export async function GET(request: NextRequest) {
         : calculateReturnPercent(totalValue)
 
       return {
+        user_id: u.show_display_name ? u.id : null,
         display_name: getDisplayName(u.id, u.display_name, u.show_display_name),
         total_return_pct: Math.round(returnPct * 100) / 100,
         is_subscriber: u.is_subscriber,

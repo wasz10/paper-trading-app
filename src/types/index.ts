@@ -72,6 +72,7 @@ export interface DailyReward {
 
 // ── Leaderboard Entry ────────────────────────────────────────────────
 export interface LeaderboardEntry {
+  user_id?: string | null
   display_name: string
   total_return_pct: number
   is_subscriber: boolean

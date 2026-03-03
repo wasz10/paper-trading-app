@@ -11,6 +11,7 @@ import { BuyModal } from '@/components/trade/buy-modal'
 import { SellModal } from '@/components/trade/sell-modal'
 import { usePortfolioStore } from '@/stores/portfolio-store'
 import { AlertButton } from '@/components/market/alert-button'
+import { WatchlistButton } from '@/components/watchlist/watchlist-button'
 import { ArrowLeft } from 'lucide-react'
 import { formatDollars, formatPercent } from '@/lib/utils'
 import type { StockQuote } from '@/types'
@@ -86,7 +87,8 @@ export default function StockDetailPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <h1 className="text-2xl font-bold">{quote.ticker}</h1>
           <span className="text-muted-foreground text-sm truncate max-w-[200px] sm:max-w-none">{quote.name}</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <WatchlistButton ticker={ticker} />
             <AlertButton ticker={ticker} currentPrice={quote.price} />
           </div>
         </div>

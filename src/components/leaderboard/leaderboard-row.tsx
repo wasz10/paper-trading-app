@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { cn, formatPercent } from '@/lib/utils'
 import type { LeaderboardEntry } from '@/types'
@@ -20,12 +21,13 @@ export function LeaderboardRow({ entry, rank, isCurrentUser }: LeaderboardRowPro
   const medal = rankMedals[rank]
   const isPositive = entry.total_return_pct >= 0
 
-  return (
+  const rowContent = (
     <div
       className={cn(
         'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors min-h-[44px]',
         isCurrentUser && 'bg-primary/5 border border-primary/20',
-        !isCurrentUser && 'hover:bg-muted/50'
+        !isCurrentUser && 'hover:bg-muted/50',
+        entry.user_id && 'cursor-pointer'
       )}
     >
       {/* Rank */}
@@ -70,4 +72,14 @@ export function LeaderboardRow({ entry, rank, isCurrentUser }: LeaderboardRowPro
       </div>
     </div>
   )
+
+  if (entry.user_id) {
+    return (
+      <Link href={`/trader/${entry.user_id}`}>
+        {rowContent}
+      </Link>
+    )
+  }
+
+  return rowContent
 }

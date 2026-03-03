@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LayoutDashboard, Search, ListOrdered, Gift, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
-import { Trophy, Award, Settings } from 'lucide-react'
+import { Trophy, Award, Star, BarChart3, ShoppingBag, Settings } from 'lucide-react'
 
 const MAIN_NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -15,6 +15,9 @@ const MAIN_NAV = [
 ]
 
 const MORE_ITEMS = [
+  { href: '/watchlist', label: 'Watchlist', icon: Star },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/shop', label: 'Shop', icon: ShoppingBag },
   { href: '/achievements', label: 'Achievements', icon: Award },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { href: '/settings', label: 'Settings', icon: Settings },
