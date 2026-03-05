@@ -1,16 +1,51 @@
 # Work Log
-> Last updated: 2026-03-03 (Sprint 3 Hotfix: tooltips, dev panel fix, RLS migration 012, PR #5 merged, deployed)
+> Last updated: 2026-03-04 (Sprint 4: token balance sync, theme system, badge frames — PR #6 merged, deployed)
 
 ---
 
 ## Current Session
-- **Goal**: Build full paper-trading app from spec through deployment (Phases 1-8, security hardening, bug fixes, deploy)
-- **Branch**: master
-- **Started**: 2026-02-27
+- **Goal**: Sprint 4 — Token Balance Sync, Theme System, Badge Frames
+- **Branch**: master (merged from `feat/sprint-4-token-sync-themes-badges`)
+- **Started**: 2026-03-04
 
 ---
 
 ## Completed This Session
+
+### Sprint 4 — Token Balance Sync, Theme System, Badge Frames (2026-03-04)
+Continued from previous session where Sprint 4 implementation was complete (token sync, themes, badge frames), all 85 tests passing, build passing (65 routes).
+
+#### Commits & PR
+- 2 commits on `feat/sprint-4-token-sync-themes-badges` branch:
+  - `feat: Sprint 4 — token balance sync, theme system, badge frames` (30 files, +1510/-29)
+  - `fix: code review — input validation, error handling, FOUC prevention` (10 files, +71/-56)
+- Created and merged **PR #6**: https://github.com/wasz10/paper-trading-app/pull/6
+- Branch `feat/sprint-4-token-sync-themes-badges` deleted after merge
+
+#### Code Review (via code-improver agent)
+Found 12 issues, fixed 8 critical/important ones:
+- Added `res.ok` checks on 5 client-side fetch calls
+- Added type narrowing for request bodies (theme, badge-frame, purchase routes)
+- Fixed stale-snapshot token refund race condition in purchase route
+- Simplified profile-initializer (removed redundant ref guard)
+- Moved keyframe CSS to globals.css (prevents FOUC + style leak)
+- Added toast feedback for badge-frame-picker errors
+- Removed unnecessary `'use client'` from framed-avatar
+
+#### Sprint 4 Feature Summary
+- **Token Balance Sync**: New `/api/profile/balance` endpoint; `refetchBalance()` replaces optimistic `addTokens()`; header token count now always matches shop/rewards
+- **Theme System**: 3 purchasable themes (Midnight Blue, Sunset Orange, Forest Green) x dark/light variants; CSS custom properties via `data-theme` attribute; apply from shop + settings; `next-themes` for dark/light toggle
+- **Badge Frame System**: 3 frame lines (Gold, Diamond, Fire) with tiered upgrades (ring -> SVG overlay -> animated); `FramedAvatar` component in header, leaderboard, trader profiles; badge frame picker in settings; prerequisite validation for upgrades
+- **Appearance Settings**: New settings section with color mode toggle, theme picker, badge frame picker
+
+#### Deployment
+- Deployed to Vercel: https://paper-trading-app-delta.vercel.app
+- 65 routes build successfully
+- 85/85 tests pass, 0 regressions
+
+---
+
+## Previous Sessions
 
 ### Phase 1.5 — Project Scaffold & Supabase Setup
 - Next.js 15 App Router project initialized with TypeScript strict mode
@@ -560,18 +595,20 @@ Nothing currently in progress.
 ---
 
 ## Up Next
+- [ ] Sprint 5 or user-directed work (no pending tasks)
 - [ ] Add ANTHROPIC_API_KEY to Vercel env vars -- AI coach errors without it
 - [ ] Add CRON_SECRET env var to Vercel for daily snapshot cron
 - [ ] Add SUPABASE_SERVICE_ROLE_KEY env var to Vercel for cron admin client and trader profile route
 - [ ] Configure Google OAuth in Supabase (needs Google client ID/secret)
 - [ ] Fix Vercel Git integration (auto-deploy not triggering on push — using manual `npx vercel --prod` as workaround)
+- [ ] (Low priority) Remaining code-improver suggestions: redundant refetchBalance+fetchItems in shop, useCallback/React.memo for shop-item-card, unused cashBalance in balance API response
 
 ---
 
 ## Known Issues / Context
 
 ### Architecture
-- **62 routes total**: Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback, /watchlist, /analytics, /shop, /trader/[id]), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status, /api/watchlist, /api/watchlist/add, /api/watchlist/remove, /api/analytics, /api/shop/items, /api/shop/purchase, /api/trader/[id], /api/dev/tokens, /api/dev/cash, /api/dev/streak, /api/dev/reset, /api/dev/snapshot, /api/dev/tutorial)
+- **65 routes total** (was 62 — added balance, theme, badge-frame API routes): Static (/, /login, /signup, /onboarding), Dynamic (/dashboard, /explore, /rewards, /leaderboard, /settings, /stock/[ticker], /trade/[id], /callback, /watchlist, /analytics, /shop, /trader/[id]), API (/api/market/*, /api/trade/*, /api/trade/history, /api/portfolio, /api/portfolio/history, /api/rewards/*, /api/leaderboard, /api/cron/snapshot, /api/tutorial/complete, /api/tutorial/status, /api/watchlist, /api/watchlist/add, /api/watchlist/remove, /api/analytics, /api/shop/items, /api/shop/purchase, /api/trader/[id], /api/dev/tokens, /api/dev/cash, /api/dev/streak, /api/dev/reset, /api/dev/snapshot, /api/dev/tutorial)
 - **Layout**: Desktop = left sidebar (w-64) + header + main. Mobile = bottom nav (h-16) + header + full-width. Both share 5 nav items: Dashboard, Explore, Rewards, Leaderboard, Settings.
 - **Dashboard layout**: `src/app/(dashboard)/layout.tsx` is a server component that does auth check + profile fetch.
 - **State management**: Zustand stores for portfolio, trade, and profile state (token balance, display name); server components fetch directly from Supabase. Profile store hydrated via `<ProfileInitializer>` bridge component in dashboard layout.
@@ -606,6 +643,11 @@ Nothing currently in progress.
 - **Dev panel fixed** (PR #5): All 6 `/api/dev/*` POST routes switched from `createAdminClient()` to `createClient()` (RLS). No longer requires `SUPABASE_SERVICE_ROLE_KEY` for dev operations — only cron and trader profile routes still need the service role key.
 - **RLS migration 012** (PR #5): Added 7 DELETE + 1 UPDATE policies across 8 tables. Full STRIDE security coverage now in place.
 - **Tooltips** (PR #5): WatchlistButton and AlertButton on stock detail page now have CSS hover tooltips matching the header.tsx pattern.
+- **Sprint 4 — Token Balance Sync** (PR #6): `refetchBalance()` replaces optimistic `addTokens()` — header token count now always matches shop/rewards after any token mutation.
+- **Sprint 4 — Theme System** (PR #6): 3 purchasable themes with dark/light variants via CSS custom properties on `data-theme` attribute. `next-themes` handles dark/light toggle. Badge frame keyframe CSS moved to globals.css to prevent FOUC + style leak.
+- **Sprint 4 — Badge Frame System** (PR #6): 3 frame lines (Gold, Diamond, Fire) with tiered upgrades. Prerequisite validation ensures users buy lower tiers before higher ones. `FramedAvatar` used in header, leaderboard, trader profiles.
+- **Local build issue**: `npm run build` fails locally due to corporate proxy blocking Google Fonts (TLS error) — Vercel builds work fine.
+- **GitHub intermittent errors**: GitHub experienced 500/502 errors during the Sprint 4 session (resolved on retry).
 
 ### Database
 - **Supabase project**: ref `xteeugmsfirnqiphjjtg`, URL `https://xteeugmsfirnqiphjjtg.supabase.co`
@@ -616,7 +658,8 @@ Nothing currently in progress.
 
 ### Git
 - **Branch**: master, build + lint clean (0 errors, 0 warnings)
-- **Latest commit**: 65700f2 on master (PR #5 merge: fix/sprint-3-hotfix-tooltips-devpanel)
+- **Latest commit**: a25cced on master (PR #6 merge: feat/sprint-4-token-sync-themes-badges)
+- **Branch `feat/sprint-4-token-sync-themes-badges`**: deleted after merge
 - **GitHub**: https://github.com/wasz10/paper-trading-app
 
 ### Workflow
@@ -741,6 +784,24 @@ Nothing currently in progress.
 | `src/app/(dashboard)/trader/[id]/page.tsx` | created | **f9a161d**: Public profile page with loading/404 states |
 | `src/app/(dashboard)/trader/[id]/loading.tsx` | created | **f9a161d**: Skeleton loading |
 | `src/app/(dashboard)/stock/[ticker]/page.tsx` | modified | **f9a161d**: Added WatchlistButton next to AlertButton |
+
+### Sprint 4 Key Files (2026-03-04)
+
+| File | Status | Notes |
+|------|--------|-------|
+| `src/app/api/profile/balance/route.ts` | created | Lightweight balance refetch endpoint |
+| `src/app/api/profile/theme/route.ts` | created | Theme selection with ownership check |
+| `src/app/api/profile/badge-frame/route.ts` | created | Frame selection with ownership check |
+| `src/components/layout/theme-provider.tsx` | created | next-themes wrapper |
+| `src/components/settings/appearance-section.tsx` | created | Appearance settings UI (color mode, theme, badge frame) |
+| `src/components/settings/badge-frame-picker.tsx` | created | Badge frame selector component |
+| `src/components/ui/framed-avatar.tsx` | created | Avatar with ring/SVG/animated frames |
+| `src/components/ui/badge-frame-svgs.tsx` | created | GoldCrown, DiamondSparkle, FireFlame SVGs |
+| `src/stores/profile-store.ts` | modified | Added activeTheme, activeBadgeFrame, refetchBalance() |
+| `src/components/layout/profile-initializer.tsx` | modified | data-theme attribute, new props |
+| `src/app/(dashboard)/shop/page.tsx` | modified | refetchBalance, handleApplyItem |
+| `src/app/api/shop/purchase/route.ts` | modified | Prerequisite validation, safer refund |
+| `src/app/globals.css` | modified | 252 lines of theme CSS + badge frame animations |
 
 ---
 
